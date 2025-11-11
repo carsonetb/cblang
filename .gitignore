@@ -1,0 +1,6 @@
+.vsconan/
+.vscode/ 
+.venv/
+.cache
+build/
+test_package/
