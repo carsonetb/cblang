@@ -1,0 +1,16 @@
+Checks: '
+    cppcoreguidelines-*,
+    readability-*,
+    modernize-*,
+    boost-*,
+    clang-analyzer-*,
+    concurrency-*,
+    performance-*,
+    readbility-*,
+    -cppcoreguidelines-macro-usage,
+    -cppcoreguidelines-avoid-non-const-global-variables,
+    -cppcoreguidelines-avoid-magic-numbers,
+    -cppcoreguidelines-special-member-functions,
+    -readability-function-cognitive-complexity,
+    -readability-use-anyofallof,
+'

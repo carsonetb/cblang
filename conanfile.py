@@ -21,9 +21,9 @@ class cblangRecipe(ConanFile):
 
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*", "include/*"
-    
+
     def requirements(self):
-        self.requires("boost/1.89.0")
+        self.requires("spdlog/1.16.0")
 
     def config_options(self):
         if self.settings.os == "Windows":

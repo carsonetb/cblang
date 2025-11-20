@@ -3,4 +3,3 @@
 .venv/
 .cache
 build/
-test_package/
