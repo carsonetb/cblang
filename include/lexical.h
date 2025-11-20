@@ -1,6 +1,8 @@
 #pragma once 
 
+#include "definitions.h"
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -87,6 +89,30 @@ namespace cblang::lexical {
         STRING_END, // ... blah ["]
         CHAR_BEGIN, // [']b'
         CHAR_END, // 'b[']
+    };
+
+    class State {
+        public:
+            State();
+
+            enum class HighLevelState : uint8_t {
+                MAIN_FILE,
+                PARSING_CLASS,
+            };
+
+            enum class ParseClassState : uint8_t {
+                NAME,
+                INHERITS,
+                PARAMS,
+                MEMBERS,
+            };
+
+            HighLevelState high_level_state;
+
+            std::shared_ptr<definitions::UserDefinition> parsing_class_definition;
+            ParseClassState parse_class_state = ParseClassState::NAME;
+
+            auto increment_state() -> bool; // Returns whether it is finished.
     };
 
     class KeywordMap : public std::unordered_map<KeywordType, std::string> {

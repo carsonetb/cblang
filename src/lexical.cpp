@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#define INCREMENT_ENUM(name, type) name = static_cast<type>(static_cast<uint8_t>(name) + 1)
+
 using namespace cblang::lexical;
 
 bool initialized = false;
@@ -21,6 +23,48 @@ static const std::vector<KeywordType> SEPERATORS {
     KeywordType::SPACE_SEPERATOR,
     KeywordType::EOF_SEPERATOR,
 };
+
+cblang::lexical::State::State() : high_level_state(HighLevelState::MAIN_FILE) {}
+
+auto parse_class_seperator(
+    const char& character, 
+    const std::string& word_constructing, 
+    State& state, 
+    std::vector<KeywordType>& expected,
+    std::vector<KeywordType>& expected_separators,
+    std::vector<KeywordType>& ignored_separators
+) -> int {
+    if (state.high_level_state == State::HighLevelState::PARSING_CLASS) {
+        logger->critical("Unexpected high level state for parse class function call!");
+        return 1;
+    }
+
+    if (state.parse_class_state == State::ParseClassState::NAME) {
+        if (!state.parsing_class_definition) {
+            logger->critical("Parsing class definition is null.");
+            return 1;
+        }
+        state.parsing_class_definition->type_name = word_constructing;
+        expected = {};
+        ignored_separators = {KeywordType::SPACE_SEPERATOR};
+        expected_separators = {KeywordType::INHERITANCE_SEPERATOR, cblang::lexical::KeywordType::INIT_PARAM_SCOPE_BEGIN};
+    }
+
+    return 0;
+}
+
+auto cblang::lexical::State::increment_state() -> bool {
+    if (high_level_state == HighLevelState::MAIN_FILE) {
+        return true;
+    }
+    if (high_level_state == HighLevelState::PARSING_CLASS) {
+        if (parse_class_state == ParseClassState::MEMBERS) {
+            return true;
+        }
+        INCREMENT_ENUM(high_level_state, HighLevelState);
+    }
+    return false;
+}
 
 auto cblang::lexical::KeywordMap::verify() const -> bool {
     for (const KeywordType& type : KeywordMap::required_types()) {
@@ -171,15 +215,21 @@ auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::
     
     std::vector<Keyword> out;
 
+    State state;
     std::vector<KeywordType> expected = {KeywordType::CLASS_KEYWORD};
     std::vector<KeywordType> expected_seperators = {KeywordType::SPACE_SEPERATOR};
+    std::vector<KeywordType> ignored_seperators = {KeywordType::SPACE_SEPERATOR};
     std::string word_constructing;
 
     data += kw_map.at(KeywordType::EOF_SEPERATOR);
 
     uint line = 0;
+    uint character_index = 0;
     for (const char& character : data) {
-        line++;
+        character_index++;
+        if (character == '\n') {
+            line++;
+        }
 
         if (!kw_map.in_array(character, SEPERATORS)) {
             word_constructing += character;
@@ -187,7 +237,7 @@ auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::
         }
 
         if (kw_map.in_array(character, expected_seperators)) {
-            if (kw_map.in_array(word_constructing, expected)) {
+            if (expected.empty() || kw_map.in_array(word_constructing, expected)) {
                 // Put a function here to handle each case based on a parser state.
             }
             else {
