@@ -1,6 +1,7 @@
 #include "lexical.h"
 #include "util.h"
 
+#include <algorithm>
 #include <cassert>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -26,6 +27,10 @@ static const std::vector<KeywordType> SEPERATORS {
     KeywordType::EOF_SEPERATOR,
     KeywordType::VAR_SCOPE_BEGIN,
     KeywordType::VAR_SCOPE_END,
+    KeywordType::TEMPLATE_SCOPE_BEGIN,
+    KeywordType::TEMPLATE_SCOPE_END,
+    KeywordType::CODE_SCOPE_BEGIN,
+    KeywordType::CODE_SCOPE_END,
 };
 
 auto cblang::lexical::KeywordMap::verify() const -> bool {
@@ -186,7 +191,7 @@ auto cblang::lexical::enable_verbose_logs() -> void {
     logger->info("Verbose logs enabled.");
 }
 
-auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::vector<Keyword> {
+auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<Keyword> {
     logger->info("Lexical parser started.");
     
     assert(kw_map.verify());
@@ -197,12 +202,18 @@ auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::
 
     std::string word_constructing;
 
-    data += kw_map.at(KeywordType::EOF_SEPERATOR);
+    // TRASH
+    data += kw_map.at(KeywordType::PARAM_RETURN_SEPERATOR);
+    replace_all(data, "->", "\1");
+    kw_map[KeywordType::PARAM_RETURN_SEPERATOR] = "\1";
+    data.pop_back(); // idk why it adds one to the end.
+
+    logger->debug(data);
 
     bool expecting_class_name = false;
     bool expecting_var_name = false;
-    bool inheritor_list = false;
-    bool argument_list = false;
+    bool expecting_scope_name = false;
+    std::vector<State> state_stack = {State::BEGIN};
 
     uint line = 0;
     uint character_index = 0;
@@ -215,33 +226,45 @@ auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::
         }
 
         if (kw_map.in_array(character, SEPERATORS)) {
-
             // -- HANDLE WORD CONSTRUCTING --
             if (!word_constructing.empty()) {
-                if (expecting_class_name) {
-                    logger->debug((inheritor_list ? "Class inherits " : "Class name ") + word_constructing);
+                if (word_constructing == kw_map.at(KeywordType::CLASS_KEYWORD)) {
+                    logger->debug("Found class keyword.");
+                    out.emplace_back(KeywordType::CLASS_KEYWORD);
+                    expecting_class_name = true;
+                }
+                else if (word_constructing == kw_map.at(KeywordType::SCOPE_KEYWORD)) {
+                    logger->debug("Found scope keyword.");
+                    out.emplace_back(KeywordType::SCOPE_KEYWORD);
+                    expecting_scope_name = true;
+                }
+                else if (expecting_scope_name) {
+                    logger->debug("-- Scope name " + word_constructing);
+                    out.push_back(Keyword(
+                        KeywordType::VAR_NAME,
+                        {{"name", word_constructing}}
+                    ));
+                    expecting_scope_name = false;
+                }
+                else if (expecting_class_name) {
+                    logger->debug("-- Class name " + word_constructing);
                     out.push_back(Keyword(
                         KeywordType::CLASS_NAME,
                         {{"name", word_constructing}}
                     ));
 
-                    if (argument_list) {
+                    if (state_stack.back() == State::ARGUMENT_LIST) {
                         expecting_class_name = false;
                         expecting_var_name = true;
                     }
                 }
                 else if (expecting_var_name) {
-                    logger->debug("Var name " + word_constructing);
+                    logger->debug("-- Var name " + word_constructing);
                     out.push_back(Keyword(
                         KeywordType::VAR_NAME,
                         {{"name", word_constructing}}
                     ));
                     expecting_var_name = false;
-                }
-
-                if (word_constructing == kw_map.at(KeywordType::CLASS_KEYWORD)) {
-                    logger->debug("Found class keyword.");
-                    expecting_class_name = true;
                 }
             }
 
@@ -252,13 +275,15 @@ auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::
 
             // -- HANDLE CHARACTER --
 
-            if (inheritor_list && character_string != kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
-                inheritor_list = false;
+            if (state_stack.back() == State::INHERITOR_LIST && character_string != kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
+                logger->debug("End inheritor list.");
+                state_stack.pop_back();
                 expecting_class_name = false;
             }
             else if (expecting_class_name) {
                 if (character_string == kw_map.at(KeywordType::INHERITANCE_SEPERATOR)) {
-                    inheritor_list = true;
+                    logger->debug("Begin inheritor list.");
+                    state_stack.push_back(State::INHERITOR_LIST);
                 }
                 else {
                     expecting_class_name = false;
@@ -267,29 +292,67 @@ auto cblang::lexical::parse(std::string data, const KeywordMap& kw_map) -> std::
 
             if (character_string == kw_map.at(KeywordType::VAR_SCOPE_BEGIN)) {
                 logger->debug("Begin argument list.");
-                argument_list = true;
+                out.emplace_back(KeywordType::VAR_SCOPE_BEGIN);
+                state_stack.push_back(State::ARGUMENT_LIST);
                 expecting_class_name = true;
             }
             if (character_string == kw_map.at(KeywordType::VAR_SCOPE_END)) {
                 logger->debug("End argument list.");
-                argument_list = false;
+                out.emplace_back(KeywordType::VAR_SCOPE_END);
+                state_stack.pop_back();
                 expecting_class_name = false;
             }
-            
-            // Argument list, after a comma go back to the type of the argument.
-            if (argument_list && character_string == kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
+
+            if (character_string == kw_map.at(KeywordType::TEMPLATE_SCOPE_BEGIN)) {
+                logger->debug("Begin template list.");
+                out.emplace_back(KeywordType::TEMPLATE_SCOPE_BEGIN);
+                state_stack.push_back(State::TEMPLATE_LIST);
+                expecting_class_name = true;
+            }
+            if (character_string == kw_map.at(KeywordType::TEMPLATE_SCOPE_END)) {
+                logger->debug("End template list.");
+                out.emplace_back(KeywordType::TEMPLATE_SCOPE_END);
+                state_stack.pop_back();
+                expecting_class_name = false;
+            }
+
+            if (character_string == kw_map.at(KeywordType::CODE_SCOPE_BEGIN)) {
+                logger->debug("Begin code scope.");
+                out.emplace_back(KeywordType::CODE_SCOPE_BEGIN);
+                state_stack.push_back(State::CODE);
+            }
+            if (character_string == kw_map.at(KeywordType::CODE_SCOPE_END)) {
+                logger->debug("End code scope.");
+                out.emplace_back(KeywordType::CODE_SCOPE_END);
+                state_stack.pop_back();
+            }
+
+            if (character_string == kw_map.at(KeywordType::PARAM_RETURN_SEPERATOR)) {
+                logger->debug("Detected function return type.");
+                out.emplace_back(KeywordType::PARAM_RETURN_SEPERATOR);
                 expecting_class_name = true;
             }
 
-            out.emplace_back(kw_map.get_from_array(character, SEPERATORS));
+            if (character_string == kw_map.at(KeywordType::NAMEVAL_SEPERATOR)) {
+                logger->debug("Detected nameval seperator.");
+                out.emplace_back(KeywordType::NAMEVAL_SEPERATOR);
+            }
+            
+            // Argument list, after a comma go back to the type of the argument.
+            if (state_stack.back() == State::ARGUMENT_LIST && character_string == kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
+                out.emplace_back(KeywordType::MULTIVAR_SEPERATOR);
+                expecting_class_name = true;
+            }
+            if (state_stack.back() == State::TEMPLATE_LIST && character_string == kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
+                out.emplace_back(KeywordType::MULTIVAR_SEPERATOR);
+            }
+
             word_constructing = "";
         }
         else {
             word_constructing += character;
             continue;
         }
-
-        
     }
 
     logger->info("Lexical parser finished.");

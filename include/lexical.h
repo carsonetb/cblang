@@ -91,6 +91,14 @@ namespace cblang::lexical {
         CHAR_END, // 'b[']
     };
 
+    enum class State : uint8_t {
+        BEGIN,
+        INHERITOR_LIST,
+        ARGUMENT_LIST,
+        TEMPLATE_LIST,
+        CODE,
+    };
+
     class KeywordMap : public std::unordered_map<KeywordType, std::string> {
         public:
             auto verify() const -> bool;
@@ -114,5 +122,5 @@ namespace cblang::lexical {
 
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
-    auto parse(std::string data, const KeywordMap& kw_map) -> std::vector<Keyword>;
+    auto parse(std::string data, KeywordMap kw_map) -> std::vector<Keyword>;
 }

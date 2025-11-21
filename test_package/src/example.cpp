@@ -2,6 +2,6 @@
 
 auto main() -> int {
     cblang::init(true);
-    cblang::cblang_parse_code("class Name : Test (Alpha beta, Alpha beta)");
+    cblang::cblang_parse_code("class Name : Test (Alpha<x> beta, Alpha beta) (Alpha beta, scope test(Alpha beta, Alpha beta) -> x = {})");
     return 0;
 } 
