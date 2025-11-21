@@ -33,6 +33,7 @@ namespace cblang::lexical {
         CLASS_NAME, // class [Name]
         VAR_NAME, // Type [name]
         FUNCTION_NAME, // scope [name]()
+        DEFINITION_TEXT,
 
         // TYPES
 

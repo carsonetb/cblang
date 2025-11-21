@@ -31,6 +31,8 @@ static const std::vector<KeywordType> SEPERATORS {
     KeywordType::TEMPLATE_SCOPE_END,
     KeywordType::CODE_SCOPE_BEGIN,
     KeywordType::CODE_SCOPE_END,
+    KeywordType::STRING_BEGIN,
+    KeywordType::STRING_END,
 };
 
 auto cblang::lexical::KeywordMap::verify() const -> bool {
@@ -213,7 +215,10 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
     bool expecting_class_name = false;
     bool expecting_var_name = false;
     bool expecting_scope_name = false;
+    bool expecting_var_definition = false;
+    bool parsing_string = false;
     std::vector<State> state_stack = {State::BEGIN};
+    std::vector<std::string> class_names;
 
     uint line = 0;
     uint character_index = 0;
@@ -227,8 +232,37 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
 
         if (kw_map.in_array(character, SEPERATORS)) {
             // -- HANDLE WORD CONSTRUCTING --
-            if (!word_constructing.empty()) {
-                if (word_constructing == kw_map.at(KeywordType::CLASS_KEYWORD)) {
+            if (!word_constructing.empty() && !parsing_string) {
+                if (state_stack.back() == State::CODE) {
+                    if (std::ranges::find(class_names, word_constructing) != class_names.end()) {
+                        logger->debug("-- (in code) class name " + word_constructing);
+                        out.push_back(Keyword(
+                            KeywordType::CLASS_NAME,
+                            {{"name", word_constructing}}
+                        ));
+                        if (!expecting_var_definition) {
+                            expecting_var_name = true;
+                        }
+                    }
+                    else if (expecting_var_name) {
+                        logger->debug("-- (in code) var name " + word_constructing);
+                        out.push_back(Keyword(
+                            KeywordType::VAR_NAME,
+                            {{"name", word_constructing}}
+                        ));
+                        expecting_var_name = false;
+                    }
+                    else if (expecting_var_definition) {
+                        // Unkown definition... (literal or variable)
+                        logger->debug("-- (in code) var definition " + word_constructing);
+                        out.push_back(Keyword(
+                            KeywordType::DEFINITION_TEXT,
+                            {{"text", word_constructing}}
+                        ));
+                        expecting_var_definition = false;
+                    }
+                }
+                else if (word_constructing == kw_map.at(KeywordType::CLASS_KEYWORD)) {
                     logger->debug("Found class keyword.");
                     out.emplace_back(KeywordType::CLASS_KEYWORD);
                     expecting_class_name = true;
@@ -252,6 +286,7 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                         KeywordType::CLASS_NAME,
                         {{"name", word_constructing}}
                     ));
+                    class_names.push_back(word_constructing);
 
                     if (state_stack.back() == State::ARGUMENT_LIST) {
                         expecting_class_name = false;
@@ -268,12 +303,27 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                 }
             }
 
-            if (character_string == kw_map.at(KeywordType::SPACE_SEPERATOR)) {
+            if (character_string == kw_map.at(KeywordType::SPACE_SEPERATOR) && !parsing_string) {
                 word_constructing = "";
                 continue;
             }
 
             // -- HANDLE CHARACTER --
+
+            if (character_string == kw_map.at(KeywordType::STRING_BEGIN) && !parsing_string) {
+                logger->debug("-- Begin parsing string");
+                out.emplace_back(KeywordType::STRING_BEGIN);
+                parsing_string = true;
+            }
+            else if (character_string == kw_map.at(KeywordType::STRING_END) && parsing_string) {
+                logger->debug("-- End parsing string");
+                out.emplace_back(KeywordType::STRING_END);
+                parsing_string = false;
+            }
+            else if (parsing_string) {
+                word_constructing += character;
+                continue;
+            }
 
             if (state_stack.back() == State::INHERITOR_LIST && character_string != kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
                 logger->debug("End inheritor list.");
@@ -334,7 +384,13 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
             }
 
             if (character_string == kw_map.at(KeywordType::NAMEVAL_SEPERATOR)) {
-                logger->debug("Detected nameval seperator.");
+                if (state_stack.back() == State::CODE) {
+                    logger->debug("-- (in code) detected nameval separator.");
+                    expecting_var_definition = true;
+                }
+                else {
+                    logger->debug("Detected nameval separator.");
+                }
                 out.emplace_back(KeywordType::NAMEVAL_SEPERATOR);
             }
             
