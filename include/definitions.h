@@ -62,7 +62,6 @@ namespace cblang::definitions {
 
             virtual auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool = 0;
             virtual auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool = 0;
-            virtual auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> = 0;
     };
 
     class UserDefinition : public ClassDefinition {
@@ -76,7 +75,6 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 
     class BoolDefinition : public ClassDefinition {
@@ -85,7 +83,6 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 
     class IntDefinition : public ClassDefinition {
@@ -94,7 +91,6 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 
     class CharDefinition : public ClassDefinition {
@@ -103,7 +99,6 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 
     class StringDefinition : public ClassDefinition {
@@ -112,7 +107,6 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 
     class ArrayDefinition : public ClassDefinition {
@@ -121,7 +115,6 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 
     class TemplateDefinition : public ClassDefinition {
@@ -132,6 +125,5 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> override;
     };
 }

@@ -1,14 +1,14 @@
 #pragma once 
 
-#include "definitions.h"
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace cblang::lexical {
     enum class KeywordType : std::uint8_t {
+        INVALID,
+
         // BASIC KEYWORDS //
 
         CLASS_KEYWORD, // "class"
@@ -91,41 +91,22 @@ namespace cblang::lexical {
         CHAR_END, // 'b[']
     };
 
-    class State {
-        public:
-            State();
-
-            enum class HighLevelState : uint8_t {
-                MAIN_FILE,
-                PARSING_CLASS,
-            };
-
-            enum class ParseClassState : uint8_t {
-                NAME,
-                INHERITS,
-                PARAMS,
-                MEMBERS,
-            };
-
-            HighLevelState high_level_state;
-
-            std::shared_ptr<definitions::UserDefinition> parsing_class_definition;
-            ParseClassState parse_class_state = ParseClassState::NAME;
-
-            auto increment_state() -> bool; // Returns whether it is finished.
-    };
-
     class KeywordMap : public std::unordered_map<KeywordType, std::string> {
         public:
             auto verify() const -> bool;
             auto in_array(const std::string& item, const std::vector<KeywordType>& array) const -> bool;
             auto in_array(const char& item, const std::vector<KeywordType>& array) const -> bool;
+            auto get_from_array(const std::string& item, const std::vector<KeywordType>& array) const -> KeywordType;
+            auto get_from_array(const char& item, const std::vector<KeywordType>& array) const -> KeywordType;
 
             static auto required_types() -> std::vector<KeywordType>;
             static auto default_map() -> KeywordMap;
     };
 
     struct Keyword {
+        Keyword(KeywordType p_type);
+        Keyword(KeywordType p_type, std::unordered_map<std::string, std::string> p_infos);
+
         KeywordType type;
 
         std::unordered_map<std::string, std::string> infos;

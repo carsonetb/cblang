@@ -34,6 +34,8 @@ cblang::definitions::FunctionDefinition::FunctionDefinition(
 
 cblang::definitions::ClassDefinition::ClassDefinition() = default;
 
+cblang::definitions::ClassDefinition::~ClassDefinition() = default;
+
 cblang::definitions::UserDefinition::UserDefinition() = default;
 
 cblang::definitions::UserDefinition::UserDefinition(
@@ -57,10 +59,6 @@ auto cblang::definitions::UserDefinition::is_constructor_valid(std::shared_ptr<C
 
 auto cblang::definitions::UserDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
     return false;
-}
-
-auto cblang::definitions::UserDefinition::get(std::vector<std::shared_ptr<ClassDefinition>> templates) -> std::shared_ptr<ClassDefinition> {
-    return nullptr;
 }
 
 cblang::definitions::BoolDefinition::BoolDefinition() {
