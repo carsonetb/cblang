@@ -34,6 +34,7 @@ namespace cblang::lexical {
         VAR_NAME, // Type [name]
         FUNCTION_NAME, // scope [name]()
         DEFINITION_TEXT,
+        UNKOWN_IDENTIFIER,
 
         // TYPES
 

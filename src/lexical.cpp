@@ -14,7 +14,7 @@
 
 using namespace cblang::lexical;
 
-bool initialized = false;
+static bool initialized = false;
 static std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_mt("cblang::lexical");
 
 static const std::vector<KeywordType> SEPERATORS {
@@ -174,7 +174,7 @@ cblang::lexical::Keyword::Keyword(KeywordType p_type) : type(p_type) {}
 cblang::lexical::Keyword::Keyword(KeywordType p_type, std::unordered_map<std::string, std::string> p_infos) : type(p_type), infos(std::move(p_infos)) {}
 
 auto cblang::lexical::init(bool verbose) -> void {
-    logger->set_pattern("[%Y-%m-%d %H:%M:%S] [cblang::lexical] %^[%l] %v %$");
+    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [cblang::lexical] %^[%l] %v %$");
     logger->set_level(spdlog::level::warn);
 
     initialized = true;
@@ -187,8 +187,6 @@ auto cblang::lexical::init(bool verbose) -> void {
 }
 
 auto cblang::lexical::enable_verbose_logs() -> void {
-    CHECK_INITIALIZED;
-
     logger->set_level(spdlog::level::debug);
     logger->info("Verbose logs enabled.");
 }
@@ -260,6 +258,13 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                             {{"text", word_constructing}}
                         ));
                         expecting_var_definition = false;
+                    }
+                    else {
+                        logger->debug("-- (in code) unknown identifier " + word_constructing);
+                        out.push_back(Keyword(
+                            KeywordType::UNKOWN_IDENTIFIER,
+                            {{"text", word_constructing}}
+                        ));
                     }
                 }
                 else if (word_constructing == kw_map.at(KeywordType::CLASS_KEYWORD)) {
@@ -370,6 +375,9 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                 logger->debug("Begin code scope.");
                 out.emplace_back(KeywordType::CODE_SCOPE_BEGIN);
                 state_stack.push_back(State::CODE);
+                expecting_var_definition = false;
+                expecting_var_name = false;
+                expecting_class_name = false;
             }
             if (character_string == kw_map.at(KeywordType::CODE_SCOPE_END)) {
                 logger->debug("End code scope.");
@@ -393,6 +401,13 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                 }
                 out.emplace_back(KeywordType::NAMEVAL_SEPERATOR);
             }
+
+            if (character_string == kw_map.at(KeywordType::CODE_LINE_SEPERATOR)) {
+                logger->debug("-- (in code) detected code line seperator (semicolon usually)");
+                out.emplace_back(KeywordType::CODE_LINE_SEPERATOR);
+                expecting_var_definition = false;
+                expecting_var_name = false;
+            };
             
             // Argument list, after a comma go back to the type of the argument.
             if (state_stack.back() == State::ARGUMENT_LIST && character_string == kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
@@ -412,4 +427,5 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
     }
 
     logger->info("Lexical parser finished.");
+    return out;
 }

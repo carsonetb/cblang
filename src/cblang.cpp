@@ -1,5 +1,6 @@
 #include "cblang.h"
 
+#include "compiler.h"
 #include "lexical.h"
 
 #include <memory>
@@ -12,10 +13,11 @@ static bool initialized = false;
 static std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_mt("cblang");
 
 auto cblang::init(bool verbose) -> void {
-    logger->set_pattern("[%Y-%m-%d %H:%M:%S] [cblang] %^[%l] %v %$");
+    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [cblang] %^[%l] %v %$");
     logger->set_level(spdlog::level::warn);
 
     lexical::init(verbose);
+    compiler::init(verbose);
 
     initialized = true;
 
@@ -42,6 +44,7 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
     }
     logger->info("Request to parse code, beginning.");
     auto lexical_parse_out = lexical::parse(code, lexical::KeywordMap::default_map());
+    auto compiler_out = compiler::compile(lexical_parse_out);
     logger->info("Finished parsing code, exiting.");
     return {};
 }
