@@ -1,9 +1,11 @@
 #pragma once
 
 #include "definitions.h"
+#include "lexical.h"
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace cblang {
@@ -19,13 +21,19 @@ namespace cblang {
     class ClassDefinition;
 
     struct ParseError {
-        enum : uint8_t {
+        enum class ErrorType : uint8_t {
+            EXPECTED_KEYWORD,
             UNKOWN_TYPE,
+            EOF_ERROR,
         };
+
+        ParseError(const lexical::Keyword& keyword, ErrorType error_type, std::string p_message) 
+            : line(keyword.line), column(keyword.column), message(std::move(p_message)) 
+        {}
 
         int line;
         int column;
-
+        std::string message;
     };
 
     class Program {

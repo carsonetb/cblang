@@ -426,6 +426,8 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
         }
     }
 
+    out.emplace_back(KeywordType::EOF_SEPERATOR);
+
     logger->info("Lexical parser finished.");
     return out;
 }

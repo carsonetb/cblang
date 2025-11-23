@@ -45,6 +45,17 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
     logger->info("Request to parse code, beginning.");
     auto lexical_parse_out = lexical::parse(code, lexical::KeywordMap::default_map());
     auto compiler_out = compiler::compile(lexical_parse_out);
-    logger->info("Finished parsing code, exiting.");
-    return {};
+    logger->info("Finished parsing code.");
+
+    if (compiler_out.errors.empty()) {
+        logger->info("Compiled program has no errors.");
+    }
+    else {
+        logger->error("Compiled program has errors! (dumping text, find a better way to log)");
+        for (const auto& error : compiler_out.errors) {
+            logger->error(error.message);
+        }
+    }
+
+    return compiler_out;
 }

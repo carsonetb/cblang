@@ -120,6 +120,8 @@ namespace cblang::lexical {
         KeywordType type;
 
         std::unordered_map<std::string, std::string> infos;
+        int line;
+        int column;
     };
 
     auto init(bool verbose = false) -> void;

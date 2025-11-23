@@ -13,4 +13,5 @@ Checks: '
     -cppcoreguidelines-special-member-functions,
     -readability-function-cognitive-complexity,
     -readability-use-anyofallof,
+    -performance-inefficient-string-concatenation,
 '

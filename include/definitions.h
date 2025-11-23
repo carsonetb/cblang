@@ -56,6 +56,7 @@ namespace cblang::definitions {
 
             std::string type_name;
             std::string templated_type_name;
+            std::vector<std::shared_ptr<MemberDefinition>> params;
             std::unordered_map<std::string, std::shared_ptr<MemberDefinition>> members;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
