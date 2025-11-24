@@ -25,6 +25,7 @@ namespace cblang {
             EXPECTED_KEYWORD,
             UNKOWN_TYPE,
             EOF_ERROR,
+            TOO_MANY_ARGUMENTS,
         };
 
         ParseError(const lexical::Keyword& keyword, ErrorType error_type, std::string p_message) 

@@ -7,6 +7,7 @@
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <string>
+#include <sys/types.h>
 #include <unordered_map>
 
 #define COMPILE_ERROR(type, message) out.errors.emplace_back(keyword, ParseError::ErrorType::type, message)
@@ -132,7 +133,8 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
             }
             else if (this_state == ParamScopeState::PARAM_NAME) {
                 if (keyword.type == lexical::KeywordType::TEMPLATE_SCOPE_BEGIN) {
-                    logger->debug("-- template scope begin ... todo!");
+                    logger->debug("Template scope begin");
+                    state.scope_stack.emplace_back(Scope::TEMPLATE_SCOPE, state_struct.generated_class->params.back());
                 }
                 else if (keyword.type == lexical::KeywordType::VAR_NAME) {
                     std::string name = keyword.infos.at("name");
@@ -158,6 +160,47 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
                 }
                 else {
                     COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a param scope end, or multivar separator.");
+                    return out;
+                }
+            }
+        }
+
+        if (main_state == Scope::TEMPLATE_SCOPE) {
+            auto& this_state = state_struct.template_scope_state;
+            if (this_state == TemplateScopeState::TYPE) {
+                if (keyword.type != lexical::KeywordType::CLASS_NAME) {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a type for a template argument.");
+                    return out;
+                }
+                std::string type = keyword.infos.at("name");
+                if (!defined_classes.contains(type)) {
+                    COMPILE_ERROR(UNKOWN_TYPE, "Unknown type for template: " + type);
+                    return out;
+                }
+                auto member = state_struct.generated_member;
+                unsigned long template_index = member->templates.size();
+                if (template_index >= member->type->templates.size()) { // If the index of the template to add exceeds the specified list length, error.
+                    COMPILE_ERROR(TOO_MANY_ARGUMENTS, "The number of templates passed is greater than the specified number.");
+                    return out;
+                }
+                logger->debug("-- template type " + type);
+                auto template_typing = member->type->templates[template_index];
+                auto new_template = std::make_shared<definitions::TemplateDefinition>(template_typing->type_name);
+                new_template->template_used = defined_classes.at(type);
+                member->templates.push_back(new_template);
+                this_state = TemplateScopeState::END_OR_REPEAT;
+            }
+            else if (this_state == TemplateScopeState::END_OR_REPEAT) {
+                if (keyword.type == lexical::KeywordType::TEMPLATE_SCOPE_END) {
+                    logger->debug("Template scope end");
+                    state.scope_stack.pop_back();
+                }
+                else if (keyword.type == lexical::KeywordType::MULTIVAR_SEPERATOR) {
+                    logger->debug("-- multivar separator");
+                    this_state = TemplateScopeState::TYPE;
+                }
+                else {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a template scope end, or multivar separator.");
                     return out;
                 }
             }

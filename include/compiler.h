@@ -45,6 +45,11 @@ namespace cblang::compiler {
         CLASS_DEFINITION,
     };
 
+    enum class TemplateScopeState : uint8_t {
+        TYPE,
+        END_OR_REPEAT,
+    };
+
     enum class VarDefinitionState : uint8_t {
         VAR_CLASS,
         VAR_NAME,
@@ -82,12 +87,14 @@ namespace cblang::compiler {
 
     struct ScopeState {
         ScopeState(Scope p_scope) : scope(p_scope) {}
+        ScopeState(Scope p_scope, std::shared_ptr<MemberDefinition> p_generated_member) : scope(p_scope), generated_member(std::move(p_generated_member)) {}
         ScopeState(Scope p_scope, std::shared_ptr<UserDefinition> p_generated_class) : scope(p_scope), generated_class(std::move(p_generated_class)) {}
 
         Scope scope;
         MainScopeState main_scope_state = MainScopeState::CLASS_KEYWORD;
         ParamScopeState param_scope_state = ParamScopeState::PARAM_TYPE;
         MemberScopeState member_scope_state = MemberScopeState::NEXT_VAR;
+        TemplateScopeState template_scope_state = TemplateScopeState::TYPE;
         VarDefinitionState var_definition_state = VarDefinitionState::VAR_CLASS;
         ScopeDefinitionState scope_definition_state = ScopeDefinitionState::BEFORE_SCOPE_KEYWORD;
         ClassDefinitionState class_definition_state = ClassDefinitionState::CLASS_KEYWORD;

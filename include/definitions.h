@@ -18,6 +18,7 @@ namespace cblang::definitions {
 
             std::string name;
             std::shared_ptr<ClassDefinition> type;
+            std::vector<std::shared_ptr<TemplateDefinition>> templates;
 
             bool is_static = false;
             bool is_private = false;

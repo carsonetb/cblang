@@ -111,6 +111,10 @@ auto cblang::definitions::StringDefinition::can_convert_to(std::shared_ptr<Class
 
 cblang::definitions::ArrayDefinition::ArrayDefinition() {
     type_name = "array";
+
+    auto value_type = std::make_shared<TemplateDefinition>("value_type");
+    templates.push_back(value_type);
+    templates_by_name["value_type"] = value_type;
 }
 
 auto cblang::definitions::ArrayDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
