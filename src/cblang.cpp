@@ -2,6 +2,7 @@
 
 #include "compiler.h"
 #include "lexical.h"
+#include "scanner.h"
 
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -17,6 +18,7 @@ auto cblang::init(bool verbose) -> void {
     logger->set_level(spdlog::level::warn);
 
     lexical::init(verbose);
+    scanner::init(verbose);
     compiler::init(verbose);
 
     initialized = true;
@@ -33,6 +35,7 @@ auto cblang::enable_verbose_logs() -> void {
         logger->error("cblang not initialized (call cblang::init)");
         return;
     }
+
     logger->set_level(spdlog::level::debug);
     logger->info("Verbose logs enabled.");
 }
@@ -44,19 +47,19 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
     }
     logger->info("Request to parse code, beginning.");
     auto kw_map = lexical::KeywordMap::default_map();
-    auto lexical_parse_out = lexical::parse(code, kw_map);
-    auto compiler_out = compiler::compile(lexical_parse_out, kw_map);
+    scanner::Scanner scanner(code);
+    auto tokens = scanner.scan_tokens();
     logger->info("Finished parsing code.");
 
-    if (compiler_out.errors.empty()) {
-        logger->info("Compiled program has no errors.");
-    }
-    else {
-        logger->error("Compiled program has errors! (dumping text, find a better way to log)");
-        for (const auto& error : compiler_out.errors) {
-            logger->error(error.message);
-        }
-    }
+    // if (compiler_out.errors.empty()) {
+    //     logger->info("Compiled program has no errors.");
+    // }
+    // else {
+    //     logger->error("Compiled program has errors! (dumping text, find a better way to log)");
+    //     for (const auto& error : compiler_out.errors) {
+    //         logger->error(error.message);
+    //     }
+    // }
 
-    return compiler_out;
+    // return compiler_out;
 }

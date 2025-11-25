@@ -4,7 +4,7 @@ from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
 
 class cblangRecipe(ConanFile):
     name = "cblang"
-    version = "2.22"
+    version = "1.0"
     package_type = "library"
 
     # Optional metadata

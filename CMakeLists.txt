@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O1 -fsanitize=address -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fsanitize=address -fno-omit-frame-pointer")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
 endif()
 
@@ -14,11 +14,9 @@ find_package(spdlog REQUIRED)
 
 
 
-add_library(cblang src/cblang.cpp src/definitions.cpp src/lexical.cpp src/objects.cpp src/compiler.cpp)
+add_library(cblang src/cblang.cpp src/definitions.cpp src/lexical.cpp src/objects.cpp src/compiler.cpp src/scanner.cpp)
 target_include_directories(cblang PUBLIC include)
 target_link_libraries(cblang PRIVATE spdlog::spdlog)
 
-
-
-set_target_properties(cblang PROPERTIES PUBLIC_HEADER "include/cblang.h;include/definitions.h;include/lexical.h;include/objects.h;include/compiler.h")
+set_target_properties(cblang PROPERTIES PUBLIC_HEADER "include/cblang.h;include/definitions.h;include/lexical.h;include/objects.h;include/compiler.h;include/scanner.h")
 install(TARGETS cblang)

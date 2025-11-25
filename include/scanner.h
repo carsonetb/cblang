@@ -6,21 +6,22 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace cblang::scanner {
     enum TokenType : uint8_t {
         // Single character
-        LEFT_PAREN, RIHGT_PAREN, LEFT_BRACKET, RIGHT_BRACKET, LEFT_CURLY_BRACE, RIGHT_CURLY_BRACE, LEFT_ANGLE_BRACE, RIGHT_ANGLE_BRACE,
+        LEFT_PAREN, RIGHT_PAREN, LEFT_BRACKET, RIGHT_BRACKET, LEFT_CURLY, RIGHT_CURLY, LEFT_ANGLE, RIGHT_ANGLE,
         COMMA, DOT, MINUS, PLUS, SLASH, STAR, SEMICOLON,
-        BANG, EQUAL, GREATER, LESS, CARET, MODULO, PIPE,
+        BANG, EQUAL, CARET, MODULO, PIPE,
 
         // Two character
-        BANG_EQUAL, EQUAL_EQUAL, GREATER_EQUAL, LESS_EQUAL, DOUBLE_ASTRIX,
+        BANG_EQUAL, EQUAL_EQUAL, GREATER_EQUAL, LESS_EQUAL, STAR_STAR, RETURN,
 
         // Literals
-        IDENTIFIER, STRING, NUMBER,
+        IDENTIFIER, STRING, FLOAT, INT,
 
         // Keywords
         CLASS_KW, TRUE_KW, FALSE_KW, PRIVATE_KW, STATIC_KW, CONST_KW, OPERATOR_KW, CAST_KW, SCOPE_KW, SUPER_KW, 
@@ -39,27 +40,32 @@ namespace cblang::scanner {
     };
 
     struct BoolLiteral : Literal {
-        BoolLiteral(bool p_val);
+        BoolLiteral(bool p_val) : val(p_val) {};
         bool val;
     };
 
     struct IntLiteral : Literal {
-        IntLiteral(int p_val);
+        IntLiteral(int p_val) : val(p_val) {};
         int val;
     };
 
+    struct FloatLiteral : Literal {
+        FloatLiteral(float p_val) : val(p_val) {};
+        float val;
+    };
+
     struct CharLiteral : Literal {
-        CharLiteral(char p_val);
+        CharLiteral(char p_val) : val(p_val) {};
         char val;
     };
 
     struct StringLiteral : Literal {
-        StringLiteral(std::string p_val);
+        StringLiteral(std::string p_val) : val(std::move(p_val)) {};
         std::string val;
     };
 
     struct ArrayLiteral : Literal {
-        ArrayLiteral(std::vector<std::shared_ptr<Literal>> p_val);
+        ArrayLiteral(std::vector<std::shared_ptr<Literal>> p_val) : val(std::move(p_val)) {};
         std::vector<std::shared_ptr<Literal>> val;
     };
 
@@ -91,10 +97,21 @@ namespace cblang::scanner {
             int current = 0;
             int line = 0;
 
+            static const std::unordered_map<std::string, TokenType> keywords;
+
             auto scan_token() -> void;
             auto advance() -> char;
             auto add_token(TokenType type) -> void;
             auto add_token(TokenType type, const std::shared_ptr<Literal>& literal) -> void;
+            auto match(const char& expected) -> bool;
+            auto string() -> void;
+            auto number() -> void;
+            auto identifier() -> void;
+            [[nodiscard]] auto peek(const int& ahead = 1) const -> char;
             [[nodiscard]] auto is_at_end() const -> bool;
+            [[nodiscard]] auto get_consumed() const -> std::string;
     };
+
+    auto init(bool verbose = false) -> void;
+    auto enable_verbose_logs() -> void;
 }
