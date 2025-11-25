@@ -1,5 +1,7 @@
 #pragma once
 
+#include "lexical.h"
+#include <cstdint>
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -11,6 +13,15 @@ namespace cblang::definitions {
     class TemplateDefinition;
     class Scope;
 
+    enum class LiteralType : uint8_t {
+        BOOL,
+        INT,
+        STRING,
+        CHAR,
+        ARRAY,
+        INVALID,
+    };
+
     class MemberDefinition {
         public:
             MemberDefinition(std::string name);
@@ -19,6 +30,7 @@ namespace cblang::definitions {
             std::string name;
             std::shared_ptr<ClassDefinition> type;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
+            std::vector<lexical::Keyword> initializer;
 
             bool is_static = false;
             bool is_private = false;
@@ -58,7 +70,8 @@ namespace cblang::definitions {
             std::string type_name;
             std::string templated_type_name;
             std::vector<std::shared_ptr<MemberDefinition>> params;
-            std::unordered_map<std::string, std::shared_ptr<MemberDefinition>> members;
+            std::unordered_map<std::string, std::shared_ptr<MemberDefinition>> members_by_name;
+            std::vector<std::shared_ptr<MemberDefinition>> members;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
 

@@ -45,7 +45,7 @@ cblang::definitions::UserDefinition::UserDefinition(
 ) {
     type_name = std::move(name);
     for (const auto& member : p_members) {
-        members[member->name] = member;
+        members_by_name[member->name] = member;
     }
     templates = std::move(p_templates);
     for (const auto& template_param : templates) {

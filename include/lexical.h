@@ -5,6 +5,10 @@
 #include <unordered_map>
 #include <vector>
 
+namespace cblang::definitions {
+    enum class LiteralType : uint8_t;
+}
+
 namespace cblang::lexical {
     enum class KeywordType : std::uint8_t {
         INVALID,
@@ -38,7 +42,6 @@ namespace cblang::lexical {
 
         // TYPES
 
-        VAR_TYPE, // [Type] name
         FUNCTION_RETURNS, // () -> [type] =
 
         // SEPERATORS //
@@ -59,7 +62,7 @@ namespace cblang::lexical {
         OPERATOR_MULTIPLY, // "*"
         OPERATOR_DIVIDE, // "/"
         OPERATOR_CARET, // "^"
-        OPERATOR_DOUBLE_ASTRIX, // "*"
+        OPERATOR_DOUBLE_ASTRIX, // "**"
         OPERATOR_MODULO, // "%"
         OPERATOR_EQUALITY, // "=="
         OPERATOR_NOT_EQUAL, // "!="
@@ -88,6 +91,7 @@ namespace cblang::lexical {
         ARRAY_SCOPE_BEGIN, // [[]var, var2, ...
         ARRAY_SCOPE_END, // ..., var3, var4[]]
         STRING_BEGIN, // ["]blah ...
+        STRING_CONTENTS,
         STRING_END, // ... blah ["]
         CHAR_BEGIN, // [']b'
         CHAR_END, // 'b[']
@@ -127,4 +131,5 @@ namespace cblang::lexical {
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
     auto parse(std::string data, KeywordMap kw_map) -> std::vector<Keyword>;
+    auto process_literal(const definitions::LiteralType& type, const std::string& data, const KeywordMap& kw_map, std::vector<Keyword>& out) -> int;
 }

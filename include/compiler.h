@@ -19,7 +19,7 @@ namespace cblang::compiler {
         MEMBER_SCOPE,
         CODE_SCOPE,
         SCOPE_DEFINITION,
-        VAR_DEFINITION,
+        MEMBER_DEFINITION,
         CLASS_DEFINITION,
         VALUE_RESOLUTION,
     };
@@ -50,10 +50,11 @@ namespace cblang::compiler {
         END_OR_REPEAT,
     };
 
-    enum class VarDefinitionState : uint8_t {
+    enum class MemberDefinitionState : uint8_t {
         VAR_CLASS,
         VAR_NAME,
-        VALUE_RESOLUTION,
+        END_OR_RESOLVE,
+        LITERAL,
     };
 
     enum class ScopeDefinitionState : uint8_t {
@@ -75,16 +76,6 @@ namespace cblang::compiler {
         MEMBERS,
     };
 
-    enum class ValueResolutionState : uint8_t {
-        BEFORE_VALUE,
-        CLASS_NAME,
-        CLASS_PARAMETERS,
-        FUNCTION_NAME,
-        FUNCTION_PARAMETERS,
-        LITERAL,
-        MEMBER_ACCESS,
-    };
-
     struct ScopeState {
         ScopeState(Scope p_scope) : scope(p_scope) {}
         ScopeState(Scope p_scope, std::shared_ptr<MemberDefinition> p_generated_member) : scope(p_scope), generated_member(std::move(p_generated_member)) {}
@@ -95,10 +86,9 @@ namespace cblang::compiler {
         ParamScopeState param_scope_state = ParamScopeState::PARAM_TYPE;
         MemberScopeState member_scope_state = MemberScopeState::NEXT_VAR;
         TemplateScopeState template_scope_state = TemplateScopeState::TYPE;
-        VarDefinitionState var_definition_state = VarDefinitionState::VAR_CLASS;
+        MemberDefinitionState member_definition_state = MemberDefinitionState::VAR_CLASS;
         ScopeDefinitionState scope_definition_state = ScopeDefinitionState::BEFORE_SCOPE_KEYWORD;
         ClassDefinitionState class_definition_state = ClassDefinitionState::CLASS_KEYWORD;
-        ValueResolutionState value_resolution_state = ValueResolutionState::BEFORE_VALUE;
 
         std::shared_ptr<MemberDefinition> generated_member = nullptr;
         std::shared_ptr<FunctionDefinition> generated_function = nullptr;
@@ -115,5 +105,5 @@ namespace cblang::compiler {
 
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
-    auto compile(const std::vector<lexical::Keyword>& keywords) -> Program;
+    auto compile(const std::vector<lexical::Keyword>& keywords, const lexical::KeywordMap& kw_map) -> Program;
 }

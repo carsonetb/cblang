@@ -23,9 +23,10 @@ namespace cblang {
     struct ParseError {
         enum class ErrorType : uint8_t {
             EXPECTED_KEYWORD,
-            UNKOWN_TYPE,
+            UNKNOWN_TYPE,
             EOF_ERROR,
             TOO_MANY_ARGUMENTS,
+            INVALID_TYPE,
         };
 
         ParseError(const lexical::Keyword& keyword, ErrorType error_type, std::string p_message) 

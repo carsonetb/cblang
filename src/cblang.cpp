@@ -43,8 +43,9 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
         return {};
     }
     logger->info("Request to parse code, beginning.");
-    auto lexical_parse_out = lexical::parse(code, lexical::KeywordMap::default_map());
-    auto compiler_out = compiler::compile(lexical_parse_out);
+    auto kw_map = lexical::KeywordMap::default_map();
+    auto lexical_parse_out = lexical::parse(code, kw_map);
+    auto compiler_out = compiler::compile(lexical_parse_out, kw_map);
     logger->info("Finished parsing code.");
 
     if (compiler_out.errors.empty()) {

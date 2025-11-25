@@ -9,6 +9,7 @@
 #include <string>
 #include <sys/types.h>
 #include <unordered_map>
+#include <vector>
 
 #define COMPILE_ERROR(type, message) out.errors.emplace_back(keyword, ParseError::ErrorType::type, message)
 
@@ -35,7 +36,7 @@ auto cblang::compiler::enable_verbose_logs() -> void {
     logger->info("Verbose logs enabled.");
 }
 
-auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) -> Program {
+auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords, const lexical::KeywordMap& kw_map) -> Program {
     logger->info("Compiler started.");
 
     Program out;
@@ -50,7 +51,8 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
     };
 
     int index = 0;
-    for (const auto& keyword : keywords) {
+    for (int i = 0; i < keywords.size(); i++) {
+        const auto& keyword = keywords.at(i);
         if (keyword.type == lexical::KeywordType::EOF_SEPERATOR && !state.scope_stack.empty()) {
             COMPILE_ERROR(EOF_ERROR, "Unexpected end of file (scope stack is not empty)");
             return out;
@@ -113,7 +115,7 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
             }
         }
         
-        if (main_state == Scope::INIT_PARAM_SCOPE) {
+        else if (main_state == Scope::INIT_PARAM_SCOPE) {
             auto& this_state = state_struct.param_scope_state;
             if (this_state == ParamScopeState::PARAM_TYPE) {
                 if (keyword.type != lexical::KeywordType::CLASS_NAME) {
@@ -122,7 +124,7 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
                 }
                 std::string type = keyword.infos.at("name");
                 if (!defined_classes.contains(type)) {
-                    COMPILE_ERROR(UNKOWN_TYPE, "Unknown type for parameter: " + type);
+                    COMPILE_ERROR(UNKNOWN_TYPE, "Unknown type for parameter: " + type);
                     return out;
                 }
                 logger->debug("-- added parameter of type " + type);
@@ -141,7 +143,7 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
                     logger->debug("-- parameter name is " + name);
                     auto param = state_struct.generated_class->params.back();
                     param->name = name;
-                    state_struct.generated_class->members[name] = param;
+                    state_struct.generated_class->members_by_name[name] = param;
                     this_state = ParamScopeState::END_OR_REPEAT;
                 }
                 else {
@@ -151,7 +153,7 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
             }
             else if (this_state == ParamScopeState::END_OR_REPEAT) {
                 if (keyword.type == lexical::KeywordType::VAR_SCOPE_END) {
-                    logger->debug("-- param scope end");
+                    logger->debug("Param scope end");
                     state.scope_stack.pop_back();
                 }
                 else if (keyword.type == lexical::KeywordType::MULTIVAR_SEPERATOR) {
@@ -165,7 +167,41 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
             }
         }
 
-        if (main_state == Scope::TEMPLATE_SCOPE) {
+        else if (main_state == Scope::MEMBER_SCOPE) {
+            auto& this_state = state_struct.member_scope_state;
+            if (this_state == MemberScopeState::NEXT_VAR) {
+                if (keyword.type == lexical::KeywordType::CLASS_NAME) {
+                    i--; // We will have to repeat this class.
+                    logger->debug("Member variable definition begin");
+                    auto new_member = std::make_shared<definitions::MemberDefinition>("unnamed");
+                    state_struct.generated_class->members.push_back(new_member);
+                    this_state = MemberScopeState::VAR_DEFINITION;
+                    state.scope_stack.emplace_back(Scope::MEMBER_DEFINITION, new_member);
+                }
+                else if (keyword.type == lexical::KeywordType::SCOPE_KEYWORD) {
+
+                }
+                else if (keyword.type == lexical::KeywordType::CLASS_KEYWORD) {
+                }
+                else if (keyword.type == lexical::KeywordType::VAR_SCOPE_BEGIN) { continue; }
+                else {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a member variable, scope, or class.");
+                    return out;
+                }
+            }
+            else if (this_state == MemberScopeState::VAR_DEFINITION) {
+                if (keyword.type != lexical::KeywordType::MULTIVAR_SEPERATOR) {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a multivar seperator after variable definition ends (something went wrong)");
+                    return out;
+                }
+                logger->debug("-- finished defining member variable");
+                auto finished_adding = state_struct.generated_class->members.back();
+                state_struct.generated_class->members_by_name[finished_adding->name] = finished_adding;
+                this_state = MemberScopeState::NEXT_VAR;
+            }
+        }
+
+        else if (main_state == Scope::TEMPLATE_SCOPE) {
             auto& this_state = state_struct.template_scope_state;
             if (this_state == TemplateScopeState::TYPE) {
                 if (keyword.type != lexical::KeywordType::CLASS_NAME) {
@@ -174,7 +210,7 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
                 }
                 std::string type = keyword.infos.at("name");
                 if (!defined_classes.contains(type)) {
-                    COMPILE_ERROR(UNKOWN_TYPE, "Unknown type for template: " + type);
+                    COMPILE_ERROR(UNKNOWN_TYPE, "Unknown type for template: " + type);
                     return out;
                 }
                 auto member = state_struct.generated_member;
@@ -203,6 +239,94 @@ auto cblang::compiler::compile(const std::vector<lexical::Keyword> &keywords) ->
                     COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a template scope end, or multivar separator.");
                     return out;
                 }
+            }
+        }
+
+        else if (main_state == Scope::MEMBER_DEFINITION) {
+            auto& this_state = state_struct.member_definition_state;
+            if (this_state == MemberDefinitionState::VAR_CLASS) {
+                if (!state_struct.generated_member) {
+                    state_struct.generated_member = std::make_shared<definitions::MemberDefinition>("unnamed");
+                }
+                if (keyword.type == lexical::KeywordType::CLASS_NAME) {
+                    std::string type = keyword.infos.at("name");
+                    logger->debug("-- var type is " + type);
+                    if (!defined_classes.contains(type)) {
+                        COMPILE_ERROR(UNKNOWN_TYPE, "Unkown type for member definition.");
+                        return out;
+                    }
+                    state_struct.generated_member->type = defined_classes.at(type);
+                    this_state = MemberDefinitionState::VAR_NAME;
+                }
+                else if (keyword.type == lexical::KeywordType::PRIVATE_KEYWORD) {
+                    logger->debug("-- var is private");
+                    state_struct.generated_member->is_private = true;
+                }
+                else if (keyword.type == lexical::KeywordType::STATIC_KEYWORD) {
+                    logger->debug("-- var is static");
+                    state_struct.generated_member->is_static = true;
+                }
+                else if (keyword.type == lexical::KeywordType::CONST_KEYWORD) {
+                    logger->debug("-- var is const");
+                    state_struct.generated_member->is_const = true;
+                }
+                else {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected either a variable class, private, static, or const.");
+                    return out;
+                }
+            }
+            else if (this_state == MemberDefinitionState::VAR_NAME) {
+                if (keyword.type != lexical::KeywordType::VAR_NAME) {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected a variable name after its type.");
+                    return out;
+                }
+                std::string name = keyword.infos.at("name");
+                logger->debug("-- var name is " + name);
+                state_struct.generated_member->name = name;
+                this_state = MemberDefinitionState::END_OR_RESOLVE;
+            }
+            else if (this_state == MemberDefinitionState::END_OR_RESOLVE) {
+                if (keyword.type == lexical::KeywordType::MULTIVAR_SEPERATOR) {
+                    logger->debug("Variable definition end");
+                    i--;
+                    state.scope_stack.pop_back();
+                }
+                else if (keyword.type == lexical::KeywordType::NAMEVAL_SEPERATOR) {
+                    logger->debug("-- variable has literal constructor");
+                    this_state = MemberDefinitionState::LITERAL;
+                }
+                else {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected multivar seperator or literal constructor");
+                    return out;
+                }
+            }
+            else if (this_state == MemberDefinitionState::LITERAL) {
+                if (keyword.type != lexical::KeywordType::DEFINITION_TEXT) {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Expected definition text");
+                    return out;
+                }
+                definitions::LiteralType literal_type = definitions::LiteralType::INVALID;
+                auto type = state_struct.generated_member->type;
+                if (type->type_name == "bool") { literal_type = definitions::LiteralType::BOOL; }
+                if (type->type_name == "int") { literal_type = definitions::LiteralType::INT; }
+                if (type->type_name == "char") { literal_type = definitions::LiteralType::CHAR; }
+                if (type->type_name == "string") { literal_type = definitions::LiteralType::STRING; }
+                if (type->type_name == "array") { literal_type = definitions::LiteralType::ARRAY; }
+                if (literal_type == definitions::LiteralType::INVALID) {
+                    COMPILE_ERROR(INVALID_TYPE, "Only literals may have constructors.");
+                    return out;
+                }
+                std::string to_parse = keyword.infos.at("text");
+                std::vector<lexical::Keyword> ret;
+                int err = lexical::process_literal(literal_type, to_parse, kw_map, ret);
+                if (err > 0) {
+                    COMPILE_ERROR(EXPECTED_KEYWORD, "Error parsing literal definition.");
+                    return out;
+                }
+                logger->debug("-- valid initializer parsed: " + to_parse);
+                state_struct.generated_member->has_initializer = true;
+                state_struct.generated_member->initializer = ret;
+                state.scope_stack.pop_back();
             }
         }
 

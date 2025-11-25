@@ -1,10 +1,12 @@
 #include "lexical.h"
+#include "definitions.h"
 #include "util.h"
 
 #include <algorithm>
 #include <cassert>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -214,6 +216,7 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
     bool expecting_var_name = false;
     bool expecting_scope_name = false;
     bool expecting_var_definition = false;
+    bool possible_var_definition = false;
     bool parsing_string = false;
     std::vector<State> state_stack = {State::BEGIN};
     std::vector<std::string> class_names;
@@ -305,6 +308,16 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                         {{"name", word_constructing}}
                     ));
                     expecting_var_name = false;
+                    possible_var_definition = true;
+                }
+                else if (expecting_var_definition) {
+                    // Unkown definition... (literal or variable)
+                    logger->debug("-- Var definition " + word_constructing);
+                    out.push_back(Keyword(
+                        KeywordType::DEFINITION_TEXT,
+                        {{"text", word_constructing}}
+                    ));
+                    expecting_var_definition = false;
                 }
             }
 
@@ -322,6 +335,10 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
             }
             else if (character_string == kw_map.at(KeywordType::STRING_END) && parsing_string) {
                 logger->debug("-- End parsing string");
+                out.emplace_back(Keyword(
+                    KeywordType::STRING_CONTENTS, 
+                    {{"text", word_constructing}}
+                ));
                 out.emplace_back(KeywordType::STRING_END);
                 parsing_string = false;
             }
@@ -356,6 +373,7 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                 out.emplace_back(KeywordType::VAR_SCOPE_END);
                 state_stack.pop_back();
                 expecting_class_name = false;
+                possible_var_definition = false;
             }
 
             if (character_string == kw_map.at(KeywordType::TEMPLATE_SCOPE_BEGIN)) {
@@ -398,6 +416,11 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
                 }
                 else {
                     logger->debug("Detected nameval separator.");
+                    if (possible_var_definition) {
+                        logger->debug("Expecting var definition.");
+                        possible_var_definition = false;
+                        expecting_var_definition = true;
+                    }
                 }
                 out.emplace_back(KeywordType::NAMEVAL_SEPERATOR);
             }
@@ -413,6 +436,7 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
             if (state_stack.back() == State::ARGUMENT_LIST && character_string == kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
                 out.emplace_back(KeywordType::MULTIVAR_SEPERATOR);
                 expecting_class_name = true;
+                possible_var_definition = false;
             }
             if (state_stack.back() == State::TEMPLATE_LIST && character_string == kw_map.at(KeywordType::MULTIVAR_SEPERATOR)) {
                 out.emplace_back(KeywordType::MULTIVAR_SEPERATOR);
@@ -430,4 +454,80 @@ auto cblang::lexical::parse(std::string data, KeywordMap kw_map) -> std::vector<
 
     logger->info("Lexical parser finished.");
     return out;
+}
+
+auto cblang::lexical::process_literal(const definitions::LiteralType& type, const std::string& data, const KeywordMap& kw_map, std::vector<Keyword>& out) -> int {
+    logger->debug("Start process literal");
+    
+    assert(kw_map.verify());
+    logger->debug("-- verified keyword map");
+
+    std::string word_constructing;
+
+    if (type == definitions::LiteralType::BOOL) {
+        if (data == "true") {
+            out.emplace_back(KeywordType::TRUE_CONSTRUCTOR);
+        }
+        else if (data == "false") {
+            out.emplace_back(KeywordType::FALSE_CONSTRUCTOR);
+        }
+        else {
+            logger->error("Invalid data to convert to bool: " + data);
+            return 1;
+        }
+    }
+    if (type == definitions::LiteralType::INT) {
+        try {
+            std::stoi(data);
+            out.push_back(Keyword(
+                KeywordType::INTEGER_CONSTRUCTOR,
+                {{"value", data}}
+            ));
+        }
+        catch (const std::invalid_argument& e) {
+            logger->error("Invalid data to convert to int: " + data);
+            return 1;
+        }
+        catch (const std::out_of_range& e) {
+            logger->error("Number is out of range: " + data);
+            return 1;
+        }
+    }
+    if (type == definitions::LiteralType::CHAR) {
+        if (data.length() == 3 && std::string(1, data[0]) == kw_map.at(KeywordType::CHAR_BEGIN) && std::string(1, data[2]) == kw_map.at(KeywordType::CHAR_END)) {
+            out.push_back(Keyword(
+                KeywordType::CHARACTER_CONSTRUCTOR,
+                {{"value", std::string(1, data[1])}}
+            ));
+        }
+        else {
+            logger->error("Invalid data to convert to char: " + data);
+            return 1;
+        }
+    }
+    if (type == definitions::LiteralType::STRING) {
+        if (std::string(1, data.front()) == kw_map.at(KeywordType::STRING_BEGIN) && std::string(1, data.back()) == kw_map.at(KeywordType::STRING_END)) {
+            // TODO: This can parse erroneous input ... fix it!
+            out.push_back(Keyword(
+                KeywordType::STRING_CONSTRUCTOR,
+                {{"value", data.substr(1, data.size() - 3)}}
+            ));
+        }
+        else {
+            logger->error("Invalid data to convert to string: " + data);
+            return 1;
+        }
+    }
+    if (type == definitions::LiteralType::ARRAY) {
+        for (const char& character : data) {
+            std::string character_string = std::string(1, character);
+            if (character_string == kw_map.at(KeywordType::SPACE_SEPERATOR)) {
+                continue;
+            }
+            // TODO: Array parsing...
+        }
+    }
+
+    logger->debug("Finish process literal");
+    return 0;
 }
