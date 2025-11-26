@@ -100,6 +100,15 @@ auto cblang::scanner::Scanner::scan_token() -> void {
                 add_token(SLASH);
             }
             break;
+        case '"': string(); break;
+        case '\'':
+            if (peek() == '\'') {
+                logger->error("Char identifier must contain a character at line " + std::to_string(line));
+            }
+            else {
+                add_token(CHARACTER, std::make_shared<CharLiteral>(peek()));
+            }
+            break;
         default: 
             if (is_digit(character)) {
                 number();

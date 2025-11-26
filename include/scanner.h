@@ -19,9 +19,10 @@ namespace cblang::scanner {
 
         // Two character
         BANG_EQUAL, EQUAL_EQUAL, GREATER_EQUAL, LESS_EQUAL, STAR_STAR, RETURN,
+        PLUS_EQUAL, MINUS_EQUAL, STAR_EQUAL, SLASH_EQUAL, TICK_EQUAL, STAR_STAR_EQUAL, MODULO_EQUAL, PIPE_EQUAL,
 
         // Literals
-        IDENTIFIER, STRING, FLOAT, INT,
+        IDENTIFIER, STRING, FLOAT, INT, CHARACTER,
 
         // Keywords
         CLASS_KW, TRUE_KW, FALSE_KW, PRIVATE_KW, STATIC_KW, CONST_KW, OPERATOR_KW, CAST_KW, SCOPE_KW, SUPER_KW, 
@@ -62,11 +63,6 @@ namespace cblang::scanner {
     struct StringLiteral : Literal {
         StringLiteral(std::string p_val) : val(std::move(p_val)) {};
         std::string val;
-    };
-
-    struct ArrayLiteral : Literal {
-        ArrayLiteral(std::vector<std::shared_ptr<Literal>> p_val) : val(std::move(p_val)) {};
-        std::vector<std::shared_ptr<Literal>> val;
     };
 
     struct Token {
