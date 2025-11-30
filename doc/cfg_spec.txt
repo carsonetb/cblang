@@ -1,9 +1,10 @@
 program: 
     "class" "Main" ( "(" parameters? ")" )? "=" "(" members? ")"
 
-parameters: IDENTIFIER templates? IDENTIFIER ( "," IDENTIFIER templates? IDENTIFIER )* ;
+parameters: IDENTIFIER template_definition? IDENTIFIER ( "," IDENTIFIER templates? IDENTIFIER )* ;
 members: declaration ( "," declaration )* ;
 templates: "<" ( IDENTIFIER templates? ( "," IDENTIFIER templates? ) )? ">"
+template_definition: "<" IDENTIFIER ( "," IDENTIFIER )* ">"
 
 declaration: 
     | varDecl
@@ -12,7 +13,7 @@ declaration:
 
 varDecl: IDENTIFIER templates? IDENTIFIER ( "=" expression )?
 
-functionDecl: "scope" IDENTIFIER ( "(" parameters? ")" )? ( "->" IDENTIFIER )? "=" "{" scope? "}"
+functionDecl: "scope" IDENTIFIER template_definition? ( "(" parameters? ")" )? ( "->" IDENTIFIER )? "=" "{" scope? "}"
 
 classDecl: "class" IDENTIFIER ( ":" IDENTIFIER ( "," IDENTIFIERS )* ) ( "(" parameters? ")" )? "=" "(" members? ")"
 

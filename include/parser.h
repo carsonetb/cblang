@@ -8,7 +8,17 @@
 #include <vector>
 
 namespace cblang::parser {
-    using Parameters = std::vector<std::pair<scanner::Token, scanner::Token>>;
+    struct Templated {
+        Templated(
+            scanner::Token p_name,
+            std::vector<std::shared_ptr<Templated>> p_templates
+        ) : name(std::move(p_name)), templates(std::move(p_templates)) {}
+
+        scanner::Token name;
+        std::vector<std::shared_ptr<Templated>> templates;
+    };
+
+    using Parameters = std::vector<std::pair<std::shared_ptr<Templated>, scanner::Token>>;
 
     struct Expr {
         virtual ~Expr();
@@ -51,13 +61,13 @@ namespace cblang::parser {
 
     struct Function : Declaration {
         Function(
-            scanner::Token p_name, 
+            std::shared_ptr<Templated> p_name, 
             Parameters p_params, 
             std::optional<scanner::Token> p_returns,
             std::vector<std::shared_ptr<Statement>> p_body
         ) : name(std::move(p_name)), params(std::move(p_params)), returns(std::move(p_returns)), body(std::move(p_body)) {}
 
-        scanner::Token name;
+        std::shared_ptr<Templated> name;
         Parameters params;
         std::optional<scanner::Token> returns;
         std::vector<std::shared_ptr<Statement>> body;
@@ -65,26 +75,26 @@ namespace cblang::parser {
 
     struct Variable : Declaration {
         Variable(
-            scanner::Token p_type,
+            std::shared_ptr<Templated> p_type,
             scanner::Token p_name,
             std::optional<std::shared_ptr<Expr>> p_value
         ) : type(std::move(p_type)), name(std::move(p_name)), value(std::move(p_value)) {}
 
-        scanner::Token type;
+        std::shared_ptr<Templated> type;
         scanner::Token name;
         std::optional<std::shared_ptr<Expr>> value;
     };
 
     struct Class : Declaration {
         Class(
-            scanner::Token p_name,
-            std::vector<scanner::Token> p_inherits,
+            std::shared_ptr<Templated> p_name,
+            std::vector<std::shared_ptr<Templated>> p_inherits,
             Parameters p_params,
             std::vector<std::shared_ptr<Declaration>> p_members
         ) : name(std::move(p_name)), inherits(std::move(p_inherits)), params(std::move(p_params)), members(std::move(p_members)) {}
 
-        scanner::Token name;
-        std::vector<scanner::Token> inherits;
+        std::shared_ptr<Templated> name;
+        std::vector<std::shared_ptr<Templated>> inherits;
         Parameters params;
         std::vector<std::shared_ptr<Declaration>> members;
     };
@@ -117,6 +127,7 @@ namespace cblang::parser {
             auto consume(const scanner::TokenType& type, const std::string& message) -> scanner::Token;
             auto synchronize() -> void;
             auto program() -> std::shared_ptr<Program>;
+            auto templated(const std::string& scope, const bool& definition = false) -> std::shared_ptr<Templated>;
             auto function() -> std::shared_ptr<Function>;
             auto class_decl() -> std::shared_ptr<Class>;
             auto variable() -> std::shared_ptr<Variable>;

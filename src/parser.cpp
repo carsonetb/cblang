@@ -111,8 +111,23 @@ auto cblang::parser::Parser::program() -> std::shared_ptr<Program> {
     return std::make_shared<Program>(params, mems);
 }
 
+auto cblang::parser::Parser::templated(const std::string& scope, const bool& definition) -> std::shared_ptr<Templated> {
+    auto name = consume(IDENTIFIER, "Expected a class name after " + scope + ".");
+    std::vector<std::shared_ptr<Templated>> templates;
+    if (match({LEFT_ANGLE})) {
+        while (true) {
+            templates.push_back(templated("',' in template scope or '<'", definition));
+            if (!check(COMMA)) {
+                break;
+            }
+        }
+        consume(RIGHT_ANGLE, "Expected '>' after template definition.");
+    }
+    return std::make_shared<Templated>(name, templates);
+}
+
 auto cblang::parser::Parser::function() -> std::shared_ptr<Function> {
-    auto name = consume(IDENTIFIER, "Expected function name after 'scope' keyword.");
+    auto name = templated("'scope' keyword'", true);
     auto params = parameters();
     std::optional<Token> returns;
     if (match({RETURN})) {
@@ -125,11 +140,11 @@ auto cblang::parser::Parser::function() -> std::shared_ptr<Function> {
 }
 
 auto cblang::parser::Parser::class_decl() -> std::shared_ptr<Class> {
-    auto name = consume(IDENTIFIER, "Expected class name after 'class' keyword.");
-    std::vector<Token> inherits;
+    auto name = templated("'class' keyword", true);
+    std::vector<std::shared_ptr<Templated>> inherits;
     if (match({COLON})) {
         while (true) {
-            inherits.push_back(consume(IDENTIFIER, "Expected name of class to inherit after ':'."));
+            inherits.push_back(templated("inheritor scope"));
             if (!check(COMMA)) {
                 break;
             }
@@ -142,7 +157,7 @@ auto cblang::parser::Parser::class_decl() -> std::shared_ptr<Class> {
 }
 
 auto cblang::parser::Parser::variable() -> std::shared_ptr<Variable> {
-    auto type = consume(IDENTIFIER, "Expected variable type.");
+    auto type = templated("variable type");
     auto name = consume(IDENTIFIER, "Expected variable name.");
     std::optional<std::shared_ptr<Expr>> expr;
     if (match({EQUAL})) {
@@ -151,15 +166,15 @@ auto cblang::parser::Parser::variable() -> std::shared_ptr<Variable> {
     return std::make_shared<Variable>(type, name, expr);
 }
 
-auto cblang::parser::Parser::parameters(bool optional) -> std::vector<std::pair<Token, Token>> {
-    std::vector<std::pair<Token, Token>> out;
+auto cblang::parser::Parser::parameters(bool optional) -> Parameters {
+    std::vector<std::pair<std::shared_ptr<Templated>, Token>> out;
     if (!check(LEFT_PAREN) && optional) {
         return {};
     }
     consume(LEFT_PAREN, "Expected '('");
     if (!check(RIGHT_PAREN)) {
         while (true) {
-            auto type = consume(IDENTIFIER, "Expected parameter type.");
+            auto type = templated("parameter scope");
             auto name = consume(IDENTIFIER, "Expected parameter name.");
             out.emplace_back(type, name);
             if (!match({COMMA})) {
@@ -365,21 +380,30 @@ auto debug_expression(const std::shared_ptr<Expr>& expr, const int& tabs) -> std
     return "This type needs debugging!";
 }
 
-auto debug_parameters(const Parameters& params, const int& tabs = 0) -> std::string {
-    std::string out;
-    for (const auto& param : params) {
-        out += __TABBING + "Parameter: " + param.first.raw + " " + param.second.raw; out += NEWLINE;
+auto debug_templates(const std::shared_ptr<Templated>& decl, const int& tabs = 0, const bool& one_line = false) -> std::string {
+    std::string out = decl->name.raw + (one_line ? "" : "\n");
+    for (const auto& templated : decl->templates) {
+        out += (one_line ? "<" : (__TABBING + "Template: ")) + debug_templates(templated, tabs + 1, one_line) + (one_line ? ">" : "");
+        if (!one_line) { out += NEWLINE; }
     }
     return out;
 }
 
-auto inherits(const std::vector<Token> types, const int& tabs = 0) -> std::string {
+auto debug_parameters(const Parameters& params, const int& tabs = 0) -> std::string {
+    std::string out;
+    for (const auto& param : params) {
+        out += __TABBING + "Parameter: " + debug_templates(param.first, tabs + 1, true) + " " + param.second.raw; out += NEWLINE;
+    }
+    return out;
+}
+
+auto debug_inherits(const std::vector<std::shared_ptr<Templated>>& types, const int& tabs = 0) -> std::string {
     std::string out;
     if (types.empty()) {
         return "(does not inherit)";
     }
-    for (const auto& types : types) {
-        out += "\n" + __TABBING + types.raw;
+    for (const auto& type : types) {
+        out += "\n" + __TABBING + debug_templates(type, tabs + 1);
     }
     return out;
 }
@@ -389,7 +413,7 @@ auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0)
     auto as_var = std::dynamic_pointer_cast<Variable>(decl);
     if (as_var) {
         out += "Variable declaration: \n";
-        out += __TABBING + "Type: " + as_var->type.raw; out += NEWLINE;
+        out += __TABBING + "Type: " + debug_templates(as_var->type, tabs + 1);
         out += __TABBING + "Name: " + as_var->name.raw; out += NEWLINE;
         if (as_var->value) {
             out += __TABBING + "Value: " + debug_expression(as_var->value.value(), tabs + 1); out += NEWLINE;
@@ -401,7 +425,7 @@ auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0)
     auto as_function = std::dynamic_pointer_cast<Function>(decl);
     if (as_function) {
         out += "Function declaration: \n";
-        out += __TABBING + "Name: " + as_function->name.raw; out += NEWLINE;
+        out += __TABBING + "Name: " + debug_templates(as_function->name, tabs + 1);
         out += __TABBING + "Parameters: \n" + debug_parameters(as_function->params, tabs + 1); out += NEWLINE;
         if (as_function->returns) {
             out += __TABBING + "Returns: " + as_function->returns.value().raw; out += NEWLINE;
@@ -413,8 +437,8 @@ auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0)
     auto as_class = std::dynamic_pointer_cast<Class>(decl);
     if (as_class) {
         out += "Class declaration: \n";
-        out += __TABBING + "Name: " + as_class->name.raw; out += NEWLINE;
-        out += __TABBING + "Inherits: " + inherits(as_class->inherits, tabs + 1); out += NEWLINE;
+        out += __TABBING + "Name: " + debug_templates(as_class->name, tabs + 1);
+        out += __TABBING + "Inherits: " + debug_inherits(as_class->inherits, tabs + 1);
         out += __TABBING + "Parameters: \n" + debug_parameters(as_class->params, tabs + 1); out += NEWLINE;
         out += __TABBING + "Members: \n" + debug_members(as_class->members, tabs + 1); out += NEWLINE;
     }

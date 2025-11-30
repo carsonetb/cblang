@@ -17,4 +17,5 @@ Checks: '
     -readability-function-cognitive-complexity,
     -readability-use-anyofallof,
     -performance-inefficient-string-concatenation,
+    -bugprone-easily-swappable-parameters,
 '
