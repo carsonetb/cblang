@@ -32,6 +32,14 @@ namespace cblang::parser {
         std::shared_ptr<Expr> right;
     };
 
+    struct Logical : Expr {
+        Logical(std::shared_ptr<Expr> p_left, scanner::Token p_op, std::shared_ptr<Expr> p_right) : left(std::move(p_left)), op(std::move(p_op)), right(std::move(p_right)) {}
+
+        std::shared_ptr<Expr> left;
+        scanner::Token op;
+        std::shared_ptr<Expr> right;
+    };
+
     struct Grouping : Expr {
         Grouping(std::shared_ptr<Expr> p_expression) : expression(std::move(p_expression)) {}
 

@@ -1,8 +1,9 @@
 program: 
     "class" "Main" ( "(" parameters? ")" )? "=" "(" members? ")"
 
-parameters: IDENTIFIER template_definition? IDENTIFIER ( "," IDENTIFIER templates? IDENTIFIER )* ;
-members: declaration ( "," declaration )* ;
+parameters: IDENTIFIER template_definition? IDENTIFIER ( "," IDENTIFIER templates? IDENTIFIER )*
+pass_params: expression ( "," expression )*
+members: declaration ( "," declaration )*
 templates: "<" ( IDENTIFIER templates? ( "," IDENTIFIER templates? ) )? ">"
 template_definition: "<" IDENTIFIER ( "," IDENTIFIER )* ">"
 
@@ -17,18 +18,27 @@ functionDecl: "scope" IDENTIFIER template_definition? ( "(" parameters? ")" )? (
 
 classDecl: "class" IDENTIFIER ( ":" IDENTIFIER ( "," IDENTIFIERS )* ) ( "(" parameters? ")" )? "=" "(" members? ")"
 
-scope: statement ( ";" statement )* ;
+scope: statement ( statement )*
+
+statement:
+    ( expression 
+    | IDENTIFIER = logic_or
+    | IDENTIFIER templates? IDENTIFIER = expression
+    | functionDecl )? ";"
+
+logic_or: logic_and ( "||" logic_and )*
+logic_and: euqality ( "&&" equality )*
 
 expression: equality
 
 equality: comparison ( ( "==" | "!=" ) comparison )*
-comparison: term ( ( ">" | ">=" | "<" | "<=" ) tern )* ;
-term: factor ( ( "+" | "-" ) factor )* ;
-factor: unary ( ( "/" | "*" ) unary )* ;
+comparison: term ( ( ">" | ">=" | "<" | "<=" ) tern )*
+term: factor ( ( "+" | "-" ) factor )*
+factor: unary ( ( "/" | "*" ) unary )*
 
 unary:
-    | ( "!" | "-" ) unary ;
-    | primary ;
+    | ( "!" | "-" ) unary
+    | primary
 
 primary: 
     | INT
@@ -37,5 +47,9 @@ primary:
     | CHARACTER
     | TRUE_KW
     | FALSE_KW 
-    | IDENTIFIER
-    | "(" expression ")" ;
+    | function_or_variable
+    | "{" scope? "}" 
+    | "(" logic_or ")"
+
+function_or_variable: 
+    | IDENTIFIER ( "(" pass_params? ")" )? ( "." function_or_variable )?
