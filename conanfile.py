@@ -24,6 +24,7 @@ class cblangRecipe(ConanFile):
 
     def requirements(self):
         self.requires("spdlog/1.16.0")
+        self.requires("boost/1.89.0")
 
     def config_options(self):
         if self.settings.os == "Windows":

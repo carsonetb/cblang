@@ -1,4 +1,5 @@
 #include "scanner.h"
+#include "parser.h"
 
 #include <memory>
 #include <spdlog/logger.h>
@@ -69,6 +70,7 @@ auto cblang::scanner::Scanner::scan_token() -> void {
         case '.': add_token(DOT); break;
         case '+': add_token(PLUS); break;
         case ';': add_token(SEMICOLON); break;
+        case ':': add_token(COLON); break;
         case '^': add_token(CARET); break;
         case '%': add_token(MODULO); break;
         case '|': add_token(PIPE); break;
@@ -230,4 +232,22 @@ auto cblang::scanner::init(bool verbose) -> void {
 auto cblang::scanner::enable_verbose_logs() -> void {
     logger->set_level(spdlog::level::debug);
     logger->info("Verbose logs enabled.");
+}
+
+auto cblang::scanner::get_literal_string(const std::shared_ptr<Literal>& literal) -> std::string {
+    auto as_bool = std::dynamic_pointer_cast<BoolLiteral>(literal);
+    if (as_bool) { return as_bool->val ? "true" : "false"; }
+    auto as_int = std::dynamic_pointer_cast<IntLiteral>(literal);
+    if (as_int) { return std::to_string(as_int->val); }
+    auto as_float = std::dynamic_pointer_cast<FloatLiteral>(literal);
+    if (as_float) { return std::to_string(as_float->val); }
+    auto as_char = std::dynamic_pointer_cast<CharLiteral>(literal);
+    if (as_char) { return "'" + std::string(1, as_char->val) + "'"; }
+    auto as_string = std::dynamic_pointer_cast<StringLiteral>(literal);
+    if (as_string) { return "\"" + as_string->val + "\""; }
+    return "Unkown literal???";
+}
+
+auto cblang::scanner::get_literal_string(const std::shared_ptr<parser::Literal>& literal) -> std::string {
+    return get_literal_string(literal->literal);
 }

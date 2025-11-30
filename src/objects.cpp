@@ -22,7 +22,6 @@ cblang::objects::Object::Object(
     for (const auto& template_param : p_templates) {
         templates[template_param->type_name] = template_param;
     }
-    init_internal();
 }
 
 auto cblang::objects::Object::init_internal() -> void {}
@@ -76,7 +75,7 @@ auto cblang::objects::IntObject::cast(std::shared_ptr<Object> obj) -> int {
     }
     auto as_char = std::dynamic_pointer_cast<CharObject>(obj);
     if (as_char) {
-        value = as_char->value;
+        value = static_cast<unsigned char>(as_char->value);
         return 0;
     }
     return 1;
@@ -131,7 +130,7 @@ auto cblang::objects::CharObject::cast_into(std::shared_ptr<Object> obj) -> int 
     }
     auto as_int = std::dynamic_pointer_cast<IntObject>(obj);
     if (as_int) {
-        as_int->value = value;
+        as_int->value = static_cast<unsigned char>(value);
         return 0;
     }
     return 1;
@@ -176,14 +175,17 @@ auto cblang::objects::StringObject::cast_into(std::shared_ptr<Object> obj) -> in
     return 1;
 }
 
-cblang::objects::ArrayObject::ArrayObject(__NAME_TYPE_TEMPLATE_PARAMS) : __INIT_OBJECT_PTYPE {}
-
-cblang::objects::ArrayObject::ArrayObject(__NAME_TYPE_TEMPLATE_PARAMS, std::vector<std::shared_ptr<Object>> p_value) : __INIT_OBJECT_PTYPE, value(std::move(p_value)) {}
-
-auto cblang::objects::ArrayObject::init_internal() -> void {
+cblang::objects::ArrayObject::ArrayObject(__NAME_TYPE_TEMPLATE_PARAMS) : __INIT_OBJECT_PTYPE {
     members["append"] = std::make_shared<FunctionObject>(template_array, FunctionObject::InternalFunction(std::bind_front(&ArrayObject::append, this)));
     members["append"]->name = "append";
 }
+
+cblang::objects::ArrayObject::ArrayObject(__NAME_TYPE_TEMPLATE_PARAMS, std::vector<std::shared_ptr<Object>> p_value) : __INIT_OBJECT_PTYPE, value(std::move(p_value)) {
+    members["append"] = std::make_shared<FunctionObject>(template_array, FunctionObject::InternalFunction(std::bind_front(&ArrayObject::append, this)));
+    members["append"]->name = "append";
+}
+
+auto cblang::objects::ArrayObject::init_internal() -> void {}
 
 auto cblang::objects::ArrayObject::cast(std::shared_ptr<Object> obj) -> int {
     if (obj->type->templated_type_name == type->templated_type_name) {

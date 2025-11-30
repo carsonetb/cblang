@@ -17,13 +17,7 @@ auto remove_from_vector(std::vector<T>& vec, const T& to_remove) {
 }
 
 // https://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string
-auto replace_all(std::string& str, const std::string& from, const std::string& to) -> void {
-    if (from.empty()) {
-        return;
-    }
-    size_t start_pos = 0;
-    while((start_pos = str.find(from, start_pos)) != std::string::npos) {
-        str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
-    }
-}
+auto replace_all(std::string& str, const std::string& from, const std::string& replace_to) -> void;
+
+// https://stackoverflow.com/questions/166630/how-can-i-repeat-a-string-a-variable-number-of-times-in-c (Answer by 'Daniel')
+auto repeat_string(std::string str, std::size_t n) -> std::string;

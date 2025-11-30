@@ -1,3 +1,23 @@
+program: 
+    "class" "Main" ( "(" parameters? ")" )? "=" "(" members? ")"
+
+parameters: IDENTIFIER templates? IDENTIFIER ( "," IDENTIFIER templates? IDENTIFIER )* ;
+members: declaration ( "," declaration )* ;
+templates: "<" ( IDENTIFIER templates? ( "," IDENTIFIER templates? ) )? ">"
+
+declaration: 
+    | varDecl
+    | functionDecl
+    | classDecl
+
+varDecl: IDENTIFIER templates? IDENTIFIER ( "=" expression )?
+
+functionDecl: "scope" IDENTIFIER ( "(" parameters? ")" )? ( "->" IDENTIFIER )? "=" "{" scope? "}"
+
+classDecl: "class" IDENTIFIER ( ":" IDENTIFIER ( "," IDENTIFIERS )* ) ( "(" parameters? ")" )? "=" "(" members? ")"
+
+scope: statement ( ";" statement )* ;
+
 expression: equality
 
 equality: comparison ( ( "==" | "!=" ) comparison )*
@@ -16,4 +36,5 @@ primary:
     | CHARACTER
     | TRUE_KW
     | FALSE_KW 
+    | IDENTIFIER
     | "(" expression ")" ;

@@ -5,17 +5,20 @@
 
 #include <cstdint>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+namespace cblang::parser {
+    class Literal;
+}
+
 namespace cblang::scanner {
     enum TokenType : uint8_t {
         // Single character
         LEFT_PAREN, RIGHT_PAREN, LEFT_BRACKET, RIGHT_BRACKET, LEFT_CURLY, RIGHT_CURLY, LEFT_ANGLE, RIGHT_ANGLE,
-        COMMA, DOT, MINUS, PLUS, SLASH, STAR, SEMICOLON,
+        COMMA, DOT, MINUS, PLUS, SLASH, STAR, SEMICOLON, COLON,
         BANG, EQUAL, CARET, MODULO, PIPE,
 
         // Two character
@@ -66,23 +69,23 @@ namespace cblang::scanner {
         std::string val;
     };
 
-    auto create_literal(bool val) -> std::shared_ptr<Literal> {
+    inline auto create_literal(bool val) -> std::shared_ptr<Literal> {
         return std::make_shared<BoolLiteral>(val);
     }
 
-    auto create_literal(int val) -> std::shared_ptr<Literal> {
+    inline auto create_literal(int val) -> std::shared_ptr<Literal> {
         return std::make_shared<IntLiteral>(val);
     }
 
-    auto create_literal(float val) -> std::shared_ptr<Literal> {
+    inline auto create_literal(float val) -> std::shared_ptr<Literal> {
         return std::make_shared<FloatLiteral>(val);
     }
 
-    auto create_literal(char val) -> std::shared_ptr<Literal> {
+    inline auto create_literal(char val) -> std::shared_ptr<Literal> {
         return std::make_shared<CharLiteral>(val);
     }
 
-    auto create_literal(const std::string& val) -> std::shared_ptr<Literal> {
+    inline auto create_literal(const std::string& val) -> std::shared_ptr<Literal> {
         return std::make_shared<StringLiteral>(val);
     }
 
@@ -131,4 +134,6 @@ namespace cblang::scanner {
 
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
+    auto get_literal_string(const std::shared_ptr<Literal>& literal) -> std::string;
+    auto get_literal_string(const std::shared_ptr<parser::Literal>& literal) -> std::string;
 }

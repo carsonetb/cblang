@@ -1,10 +1,12 @@
 #include "cblang.h"
 
 #include "compiler.h"
-#include "lexical.h"
+#include "parser.h"
 #include "scanner.h"
+#include "lexical.h"
 
 #include <memory>
+#include <optional>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
@@ -17,9 +19,10 @@ auto cblang::init(bool verbose) -> void {
     logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [cblang] %^[%l] %v %$");
     logger->set_level(spdlog::level::warn);
 
-    lexical::init(verbose);
-    scanner::init(verbose);
-    compiler::init(verbose);
+    cblang::scanner::init(verbose);
+    cblang::compiler::init(verbose);
+    cblang::parser::init(verbose);
+    cblang::lexical::init(verbose);
 
     initialized = true;
 
@@ -46,10 +49,16 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
         return {};
     }
     logger->info("Request to parse code, beginning.");
-    auto kw_map = lexical::KeywordMap::default_map();
     scanner::Scanner scanner(code);
     auto tokens = scanner.scan_tokens();
+    parser::Parser parser(tokens);
+    auto program = parser.parse();
+    if (!program) {
+        logger->error("Error parsing code.");
+        return {};
+    }
     logger->info("Finished parsing code.");
+    logger->info("Expression graph: \n" + parser::debug_program(program.value()));
 
     // if (compiler_out.errors.empty()) {
     //     logger->info("Compiled program has no errors.");
@@ -62,4 +71,5 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
     // }
 
     // return compiler_out;
+    return {};
 }

@@ -5,3 +5,5 @@
 build/
 CMakeUserPresets.json
 test_package/CMakeUserPresets.json
+
+.env

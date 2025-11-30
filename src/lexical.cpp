@@ -462,8 +462,6 @@ auto cblang::lexical::process_literal(const definitions::LiteralType& type, cons
     assert(kw_map.verify());
     logger->debug("-- verified keyword map");
 
-    std::string word_constructing;
-
     if (type == definitions::LiteralType::BOOL) {
         if (data == "true") {
             out.emplace_back(KeywordType::TRUE_CONSTRUCTOR);
