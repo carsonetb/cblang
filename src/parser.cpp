@@ -376,6 +376,20 @@ auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
         return std::make_shared<Grouping>(expr);
     }
 
+    if (match({LEFT_BRACKET})) {
+        std::vector<std::shared_ptr<Expr>> items;
+        if (!check(RIGHT_BRACKET)) {
+            while (true) {
+                items.push_back(expression());
+                if (!match({COMMA})) {
+                    break;
+                }
+            }
+        }
+        consume(RIGHT_BRACKET, "Expected ']' after array items.");
+        return std::make_shared<ArrayExpr>(items);
+    }
+
     throw handle_error(peek(), "Expected literal, identifier, '{', or '('.");
 }
 

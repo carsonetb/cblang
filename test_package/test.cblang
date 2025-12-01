@@ -1,9 +1,10 @@
+// Certainly this is not valid code.
 class Main (Alpha<Temp> beta, Alpha cheta) = (
     X<Temp> y = 1, 
     scope function<Templ>(X y, Foo bar) -> Foo = {
         a == b;
-        a = b;
-        X<t> a = c == b;
+        a = b(1, 2, c);
+        X<t> a = c == [5, foo, [bar]];
         scope inner<Templ>(Foo bar, Boo far) -> Hoo = {
             a == b;
         };

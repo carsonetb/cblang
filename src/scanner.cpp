@@ -101,6 +101,7 @@ auto cblang::scanner::Scanner::scan_token() -> void {
                 while (peek() != '\n' && !is_at_end()) {
                     advance();
                 }
+                line++;
             }
             else {
                 add_token(SLASH);

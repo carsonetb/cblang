@@ -90,6 +90,12 @@ namespace cblang::parser {
         std::vector<std::shared_ptr<Statement>> statements;
     };
 
+    struct ArrayExpr : Expr {
+        ArrayExpr(std::vector<std::shared_ptr<Expr>> p_items) : items(std::move(p_items)) {}
+
+        std::vector<std::shared_ptr<Expr>> items;
+    };
+
     struct Accessible : Expr {
         Accessible(std::optional<std::shared_ptr<Accessible>> p_access) : access(std::move(p_access)) {}
 
@@ -114,7 +120,7 @@ namespace cblang::parser {
     };
 
     struct Declaration : Statement {
-        
+
     };
 
     struct Function : Declaration {

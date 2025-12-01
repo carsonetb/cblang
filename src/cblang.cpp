@@ -6,7 +6,6 @@
 #include "lexical.hpp"
 
 #include <memory>
-#include <optional>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
