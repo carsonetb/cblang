@@ -1,8 +1,10 @@
 #include "compiler.hpp"
 #include "cblang.hpp"
 #include "definitions.hpp"
+#include "parser.hpp"
 
 #include <memory>
+#include <optional>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <string>
@@ -12,6 +14,7 @@
 #define COMPILE_ERROR(type, message) out.errors.emplace_back(keyword, ParseError::ErrorType::type, message)
 
 using namespace cblang::compiler;
+using namespace cblang;
 
 static bool initialized = false;
 static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_st("cblang::compiler");
@@ -47,5 +50,22 @@ auto cblang::compiler::Compiler::compile() -> Program {
 }
 
 auto cblang::compiler::Compiler::main() -> std::shared_ptr<definitions::UserDefinition> {
-    return std::make_shared<definitions::UserDefinition>("Main", class_params(source->parameters), class_members(source->members), std::vector<std::shared_ptr<definitions::TemplateDefinition>>());
+    auto members = class_members(source->members);
+    auto params = class_params(source->parameters);
+    for (const auto& param : params) {
+        members.push_back(param);
+    }
+    std::vector<std::shared_ptr<definitions::TemplateDefinition>> templates;
+    return std::make_shared<definitions::UserDefinition>("Main", params, members, templates);
+}
+
+auto cblang::compiler::Compiler::class_params(const parser::Parameters& input) -> std::vector<std::shared_ptr<MemberDefinition>> {
+    std::vector<std::shared_ptr<MemberDefinition>> out;
+    for (const auto& param : input) {
+        auto type = process_templated(param.first);
+        auto name = param.second.raw;
+        std::optional<std::shared_ptr<parser::Expr>> expression; // Expressions need to be supported in Parameters!!!
+        out.push_back(std::make_shared<MemberDefinition>(type, name, expression));
+    }
+    return out;
 }

@@ -31,5 +31,6 @@ namespace cblang::compiler {
             auto class_params(const parser::Parameters& input) -> std::vector<std::shared_ptr<MemberDefinition>>;
             auto class_members(const std::vector<std::shared_ptr<parser::Declaration>>& input) -> std::vector<std::shared_ptr<MemberDefinition>>;
             auto class_templates(const std::shared_ptr<parser::Class>& input) -> std::vector<std::shared_ptr<TemplateDefinition>>;
+            auto process_templated(const std::shared_ptr<parser::Templated>& input) -> TemplatedDefinition;
     };
 }

@@ -8,22 +8,20 @@
 
 using namespace cblang::definitions;
 
-cblang::definitions::MemberDefinition::MemberDefinition(std::string name) : name(std::move(name)) {
-    
-}
+cblang::definitions::MemberDefinition::MemberDefinition(
+    TemplatedDefinition type,
+    std::string name,
+    std::optional<std::shared_ptr<parser::Expr>> initializer
+) : type(std::move(type)), name(std::move(name)), initializer(std::move(initializer)) {}
 
 cblang::definitions::MemberDefinition::~MemberDefinition() = default;
 
-cblang::definitions::ParameterDefinition::ParameterDefinition(std::string name) : MemberDefinition(std::move(name)) {
-
-};
-
-cblang::definitions::FunctionDefinition::FunctionDefinition(
+cblang::definitions::FunctionMember::FunctionMember(
     std::string name, 
-    std::vector<std::shared_ptr<ParameterDefinition>> p_parameters, 
+    std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
     std::shared_ptr<ClassDefinition> p_returns
-) : MemberDefinition(std::move(name)), 
+) : MemberDefinition(TemplatedDefinition(std::make_shared<FunctionDefinition>(), {}), std::move(name), {}), // Maybe this has an initializer as the scope {}? 
     parameters(std::move(p_parameters)), 
     templates(std::move(p_templates)), 
     returns(std::move(p_returns))
@@ -123,6 +121,16 @@ auto cblang::definitions::ArrayDefinition::is_constructor_valid(std::shared_ptr<
 }
 
 auto cblang::definitions::ArrayDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
+    return false;
+}
+
+cblang::definitions::FunctionDefinition::FunctionDefinition() : ClassDefinition("scope", {}, {}, {}) {}
+
+auto cblang::definitions::FunctionDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
+    return false;
+}
+
+auto cblang::definitions::FunctionDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
     return false;
 }
 

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "scanner.hpp"
+#include "parser.hpp"
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace cblang::definitions {
@@ -13,6 +14,8 @@ namespace cblang::definitions {
     class ClassDefinition;
     class TemplateDefinition;
     class Scope;
+
+    using TemplatedDefinition = std::pair<std::shared_ptr<ClassDefinition>, std::vector<std::shared_ptr<TemplateDefinition>>>;
 
     enum class LiteralType : uint8_t {
         BOOL,
@@ -25,35 +28,32 @@ namespace cblang::definitions {
 
     class MemberDefinition {
         public:
-            MemberDefinition(std::string name);
+            MemberDefinition(
+                TemplatedDefinition type,
+                std::string name,
+                std::optional<std::shared_ptr<parser::Expr>> initializer
+            );
             virtual ~MemberDefinition();
 
             std::string name;
-            std::shared_ptr<ClassDefinition> type;
-            std::vector<std::shared_ptr<TemplateDefinition>> templates;
-            std::vector<scanner::Token> initializer;
+            TemplatedDefinition type;
+            std::optional<std::shared_ptr<parser::Expr>> initializer;
 
             bool is_static = false;
             bool is_private = false;
             bool is_const = false;
-            bool has_initializer = false;
     };
 
-    class ParameterDefinition : public MemberDefinition {
+    class FunctionMember : public MemberDefinition {
         public:
-            ParameterDefinition(std::string name);
-    };
-
-    class FunctionDefinition : public MemberDefinition {
-        public:
-            FunctionDefinition(
+            FunctionMember(
                 std::string name, 
-                std::vector<std::shared_ptr<ParameterDefinition>> p_parameters, 
+                std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
                 std::shared_ptr<ClassDefinition> p_returns
             );
 
-            std::vector<std::shared_ptr<ParameterDefinition>> parameters;
+            std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
             std::shared_ptr<ClassDefinition> returns;
@@ -141,6 +141,14 @@ namespace cblang::definitions {
     class ArrayDefinition : public ClassDefinition {
         public:
             ArrayDefinition();
+
+            auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
+            auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
+    };
+
+    class FunctionDefinition : public ClassDefinition {
+        public: 
+            FunctionDefinition();
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
