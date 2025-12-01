@@ -1,12 +1,17 @@
 #pragma once
 
 #include "definitions.hpp"
-#include "lexical.hpp"
+#include "scanner.hpp"
 
 #include <cstdint>
 #include <memory>
 #include <utility>
 #include <vector>
+
+namespace cblang::definitions {
+    class TemplateDefinition;
+    class ClassDefinition;
+}
 
 namespace cblang {
     using namespace definitions;
@@ -17,9 +22,6 @@ namespace cblang {
         #define CBLANG_EXPORT
     #endif
 
-    class TemplateDefinition;
-    class ClassDefinition;
-
     struct ParseError {
         enum class ErrorType : uint8_t {
             EXPECTED_KEYWORD,
@@ -29,7 +31,7 @@ namespace cblang {
             INVALID_TYPE,
         };
 
-        ParseError(const lexical::Keyword& keyword, ErrorType error_type, std::string p_message) 
+        ParseError(const scanner::Token& keyword, ErrorType error_type, std::string p_message) 
             : line(keyword.line), column(keyword.column), message(std::move(p_message)) 
         {}
 

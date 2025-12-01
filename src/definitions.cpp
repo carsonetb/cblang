@@ -1,4 +1,5 @@
 #include "definitions.hpp"
+#include "util.hpp"
 
 #include <memory>
 #include <string>
@@ -28,30 +29,34 @@ cblang::definitions::FunctionDefinition::FunctionDefinition(
     returns(std::move(p_returns))
 {
     for (const auto& template_param : templates) {
-        templates_by_name[template_param->type_name] = template_param;
+        templates_by_name[template_param->template_name] = template_param;
     }
 }
 
-cblang::definitions::ClassDefinition::ClassDefinition() = default;
-
-cblang::definitions::ClassDefinition::~ClassDefinition() = default;
-
-cblang::definitions::UserDefinition::UserDefinition() = default;
-
-cblang::definitions::UserDefinition::UserDefinition(
-    std::string name, 
-    const std::vector<std::shared_ptr<MemberDefinition>>& p_members, 
+cblang::definitions::ClassDefinition::ClassDefinition(
+    std::string p_templated_type_name,
+    std::vector<std::shared_ptr<MemberDefinition>> p_params,
+    std::vector<std::shared_ptr<MemberDefinition>> p_members,
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates
-) {
-    type_name = std::move(name);
+) : templated_type_name(std::move(p_templated_type_name)), params(std::move(p_params)), members(std::move(p_members)), templates(std::move(p_templates)) 
+{
+    type_name = split(p_templated_type_name, "<")[0];
     for (const auto& member : p_members) {
         members_by_name[member->name] = member;
     }
-    templates = std::move(p_templates);
-    for (const auto& template_param : templates) {
-        templates_by_name[template_param->type_name] = template_param;
+    for (const auto& templ : p_templates) {
+        templates_by_name[templ->template_name] = templ;
     }
 };
+
+cblang::definitions::ClassDefinition::~ClassDefinition() = default;
+
+cblang::definitions::UserDefinition::UserDefinition(
+    const std::string& p_name, 
+    const std::vector<std::shared_ptr<MemberDefinition>>& p_params,
+    const std::vector<std::shared_ptr<MemberDefinition>>& p_members, 
+    const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates
+) : ClassDefinition(p_name, p_params, p_members, p_templates) {};
 
 auto cblang::definitions::UserDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
     return false;
@@ -61,9 +66,7 @@ auto cblang::definitions::UserDefinition::can_convert_to(std::shared_ptr<ClassDe
     return false;
 }
 
-cblang::definitions::BoolDefinition::BoolDefinition() {
-    type_name = "bool";
-};
+cblang::definitions::BoolDefinition::BoolDefinition() : ClassDefinition("bool", {}, {}, {}) {}
 
 auto cblang::definitions::BoolDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
     return def->type_name == "int";
@@ -73,21 +76,27 @@ auto cblang::definitions::BoolDefinition::can_convert_to(std::shared_ptr<ClassDe
     return def->type_name == "int";
 }
 
-cblang::definitions::IntDefinition::IntDefinition() {
-    type_name = "int";
-};
+cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition("int", {}, {}, {}) {};
 
 auto cblang::definitions::IntDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
-    return def->type_name == "char" || def->type_name == "bool";
+    return def->type_name == "char" || def->type_name == "bool" || def->type_name == "string";
 }
 
 auto cblang::definitions::IntDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
     return def->type_name == "char" || def->type_name == "bool";
 }
 
-cblang::definitions::CharDefinition::CharDefinition() {
-    type_name = "char";
+cblang::definitions::FloatDefinition::FloatDefinition() : ClassDefinition("float", {}, {}, {}) {}
+
+auto cblang::definitions::FloatDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
+    return false;
 }
+
+auto cblang::definitions::FloatDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
+    return def->type_name == "string";
+}
+
+cblang::definitions::CharDefinition::CharDefinition() : ClassDefinition("char", {}, {}, {}) {}
 
 auto cblang::definitions::CharDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
     return def->type_name == "int";
@@ -97,25 +106,17 @@ auto cblang::definitions::CharDefinition::can_convert_to(std::shared_ptr<ClassDe
     return def->type_name == "int";
 }
 
-cblang::definitions::StringDefinition::StringDefinition() {
-    type_name = "char";
-}
+cblang::definitions::StringDefinition::StringDefinition() : ClassDefinition("string", {}, {}, {}) {}
 
 auto cblang::definitions::StringDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
-    return def->templated_type_name == "array<char>";
+    return def->templated_type_name == "array<char>" || def->type_name == "int";
 }
 
 auto cblang::definitions::StringDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
     return def->templated_type_name == "array<char>";
 }
 
-cblang::definitions::ArrayDefinition::ArrayDefinition() {
-    type_name = "array";
-
-    auto value_type = std::make_shared<TemplateDefinition>("value_type");
-    templates.push_back(value_type);
-    templates_by_name["value_type"] = value_type;
-}
+cblang::definitions::ArrayDefinition::ArrayDefinition() : ClassDefinition("array<value_type>", {}, {}, {std::make_shared<TemplateDefinition>("value_type")}) {}
 
 auto cblang::definitions::ArrayDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
     return false;
@@ -125,14 +126,4 @@ auto cblang::definitions::ArrayDefinition::can_convert_to(std::shared_ptr<ClassD
     return false;
 }
 
-cblang::definitions::TemplateDefinition::TemplateDefinition(std::string template_title) {
-    type_name = std::move(template_title);
-}
-
-auto cblang::definitions::TemplateDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
-    return false;
-}
-
-auto cblang::definitions::TemplateDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
-    return false;
-}
+cblang::definitions::TemplateDefinition::TemplateDefinition(std::string p_template_name) : template_name(std::move(p_template_name)) {}

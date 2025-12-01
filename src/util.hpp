@@ -21,3 +21,6 @@ auto replace_all(std::string& str, const std::string& from, const std::string& r
 
 // https://stackoverflow.com/questions/166630/how-can-i-repeat-a-string-a-variable-number-of-times-in-c (Answer by 'Daniel')
 auto repeat_string(std::string str, std::size_t n) -> std::string;
+
+// https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c (Answer by 'Vincenzo Pii')
+auto split(const std::string& split, const std::string& delimiter) -> std::vector<std::string>;

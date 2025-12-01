@@ -98,6 +98,7 @@ namespace cblang::scanner {
         std::string raw;
         std::shared_ptr<Literal> literal;
         int line;
+        int column = 0;
 
         [[nodiscard]] auto to_string() const -> std::string {
             return raw + " at " + std::to_string(line);

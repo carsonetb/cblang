@@ -163,8 +163,8 @@ namespace cblang::parser {
         std::vector<std::shared_ptr<Declaration>> members;
     };
 
-    struct Program {
-        Program(
+    struct ParsedProgram {
+        ParsedProgram(
             Parameters p_params, 
             std::vector<std::shared_ptr<Declaration>> p_members
         ) : parameters(std::move(p_params)), members(std::move(p_members)) {}
@@ -179,10 +179,9 @@ namespace cblang::parser {
         public:
             Parser(std::vector<scanner::Token> p_tokens);
 
-            auto parse() -> std::optional<std::shared_ptr<Program>>;
+            auto parse() -> std::optional<std::shared_ptr<ParsedProgram>>;
         
         private:
-
             std::vector<scanner::Token> tokens;
             int current = 0;
 
@@ -190,7 +189,7 @@ namespace cblang::parser {
             auto advance() -> scanner::Token;
             auto consume(const scanner::TokenType& type, const std::string& message) -> scanner::Token;
             auto synchronize() -> void;
-            auto program() -> std::shared_ptr<Program>;
+            auto program() -> std::shared_ptr<ParsedProgram>;
             auto templated(const std::string& scope, const bool& definition = false) -> std::shared_ptr<Templated>;
             auto function() -> std::shared_ptr<Function>;
             auto class_decl() -> std::shared_ptr<Class>;
@@ -217,6 +216,6 @@ namespace cblang::parser {
 
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
-    auto debug_program(const std::shared_ptr<Program>& program) -> std::string;
+    auto debug_program(const std::shared_ptr<ParsedProgram>& program) -> std::string;
     auto debug_members(const std::vector<std::shared_ptr<Declaration>>& decls, const int& tabs = 0) -> std::string;
 }

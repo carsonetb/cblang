@@ -39,7 +39,7 @@ cblang::parser::Parser::Parser(std::vector<scanner::Token> p_tokens) : tokens(st
     
 }
 
-auto cblang::parser::Parser::parse() -> std::optional<std::shared_ptr<Program>> {
+auto cblang::parser::Parser::parse() -> std::optional<std::shared_ptr<ParsedProgram>> {
     logger->debug("Parser started.");
     try {
         return program();
@@ -100,14 +100,14 @@ auto cblang::parser::Parser::synchronize() -> void {
     }
 }
 
-auto cblang::parser::Parser::program() -> std::shared_ptr<Program> {
+auto cblang::parser::Parser::program() -> std::shared_ptr<ParsedProgram> {
     consume(CLASS_KW, "Program must start with the 'class' keyword (for Main class definition.)");
     auto name = consume(IDENTIFIER, "Expected 'Main' identifier after 'class' keyword.");
     if (name.raw != "Main") { throw handle_error(name, "First class must be named 'Main'."); }
     auto params = parameters();
     consume(EQUAL, "Expected '=' between parameters and members.");
     auto mems = members();
-    return std::make_shared<Program>(params, mems);
+    return std::make_shared<ParsedProgram>(params, mems);
 }
 
 auto cblang::parser::Parser::templated(const std::string& scope, const bool& definition) -> std::shared_ptr<Templated> {
@@ -564,7 +564,7 @@ auto cblang::parser::debug_members(const std::vector<std::shared_ptr<Declaration
     return out;
 }
 
-auto cblang::parser::debug_program(const std::shared_ptr<Program>& program) -> std::string {
+auto cblang::parser::debug_program(const std::shared_ptr<ParsedProgram>& program) -> std::string {
     int tabs = 0;
     std::string out;
     out += "Program: \n";

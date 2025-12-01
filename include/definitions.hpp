@@ -1,7 +1,8 @@
 #pragma once
 
-#include "lexical.hpp"
+#include "scanner.hpp"
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -30,7 +31,7 @@ namespace cblang::definitions {
             std::string name;
             std::shared_ptr<ClassDefinition> type;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
-            std::vector<lexical::Keyword> initializer;
+            std::vector<scanner::Token> initializer;
 
             bool is_static = false;
             bool is_private = false;
@@ -62,7 +63,12 @@ namespace cblang::definitions {
 
     class ClassDefinition {
         public:
-            ClassDefinition();
+            ClassDefinition(
+                std::string p_templated_type_name,
+                std::vector<std::shared_ptr<MemberDefinition>> p_params,
+                std::vector<std::shared_ptr<MemberDefinition>> p_members,
+                std::vector<std::shared_ptr<TemplateDefinition>> p_templates
+            );
             virtual ~ClassDefinition();
 
             bool invalid = false;
@@ -81,11 +87,11 @@ namespace cblang::definitions {
 
     class UserDefinition : public ClassDefinition {
         public:
-            UserDefinition();
             UserDefinition(
-                std::string name, 
+                const std::string& name, 
+                const std::vector<std::shared_ptr<MemberDefinition>>& p_params,
                 const std::vector<std::shared_ptr<MemberDefinition>>& p_members, 
-                std::vector<std::shared_ptr<TemplateDefinition>> p_templates
+                const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates
             );
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
@@ -103,6 +109,14 @@ namespace cblang::definitions {
     class IntDefinition : public ClassDefinition {
         public:
             IntDefinition();
+
+            auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
+            auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
+    };
+
+    class FloatDefinition : public ClassDefinition {
+        public:
+            FloatDefinition();
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
@@ -132,13 +146,11 @@ namespace cblang::definitions {
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
     };
 
-    class TemplateDefinition : public ClassDefinition {
+    class TemplateDefinition  {
         public:
-            TemplateDefinition(std::string template_title);
+            TemplateDefinition(std::string p_template_name);
 
-            std::shared_ptr<ClassDefinition> template_used = nullptr;
-
-            auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
+            std::string template_name;
+            std::optional<std::shared_ptr<ClassDefinition>> template_used;
     };
 }

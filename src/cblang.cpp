@@ -3,7 +3,6 @@
 #include "compiler.hpp"
 #include "parser.hpp"
 #include "scanner.hpp"
-#include "lexical.hpp"
 
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -21,7 +20,6 @@ auto cblang::init(bool verbose) -> void {
     cblang::scanner::init(verbose);
     cblang::compiler::init(verbose);
     cblang::parser::init(verbose);
-    cblang::lexical::init(verbose);
 
     initialized = true;
 
