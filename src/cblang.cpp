@@ -1,9 +1,9 @@
-#include "cblang.h"
+#include "cblang.hpp"
 
-#include "compiler.h"
-#include "parser.h"
-#include "scanner.h"
-#include "lexical.h"
+#include "compiler.hpp"
+#include "parser.hpp"
+#include "scanner.hpp"
+#include "lexical.hpp"
 
 #include <memory>
 #include <optional>
@@ -58,7 +58,6 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
         return {};
     }
     logger->info("Finished parsing code.");
-    logger->info("Expression graph: \n" + parser::debug_program(program.value()));
 
     // if (compiler_out.errors.empty()) {
     //     logger->info("Compiled program has no errors.");

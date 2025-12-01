@@ -1,7 +1,7 @@
-#include "parser.h"
+#include "parser.hpp"
 
-#include "scanner.h"
-#include "util.h"
+#include "scanner.hpp"
+#include "util.hpp"
 #include <memory>
 #include <optional>
 #include <spdlog/logger.h>
@@ -33,9 +33,7 @@ static auto handle_error(const Token& token, const std::string& message) -> Pars
     return {};
 }
 
-cblang::parser::Expr::~Expr() = default;
-
-cblang::parser::Declaration::~Declaration() = default;
+cblang::parser::Statement::~Statement() = default;
 
 cblang::parser::Parser::Parser(std::vector<scanner::Token> p_tokens) : tokens(std::move(p_tokens)) {
     
@@ -92,6 +90,7 @@ auto cblang::parser::Parser::synchronize() -> void {
             case CONST_KW:
             case OPERATOR_KW:
             case CAST_KW:
+            case RIGHT_CURLY:
                 return;
             default:
                 break;
@@ -219,7 +218,13 @@ auto cblang::parser::Parser::scope() -> std::vector<std::shared_ptr<Statement>> 
     std::vector<std::shared_ptr<Statement>> statements;
 
     while (!check(RIGHT_CURLY) && !is_at_end()) {
-        statements.push_back(statement());
+        try {
+            statements.push_back(statement());
+            consume(SEMICOLON, "Expected ';' after statement.");
+        }
+        catch (ParseException exception) {
+            synchronize();
+        }
     }
 
     consume(RIGHT_CURLY, "Expected '}' after scope.");
@@ -227,11 +232,64 @@ auto cblang::parser::Parser::scope() -> std::vector<std::shared_ptr<Statement>> 
 }
 
 auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
-    // TODO
+    try {
+        if (check(IDENTIFIER) && check(EQUAL, 2)) {
+            auto name = consume(IDENTIFIER, "");
+            consume(EQUAL, "");
+            auto expr = expression();
+            return std::make_shared<SetVar>(name, expr);
+        }
+        if (check(IDENTIFIER) && (check(IDENTIFIER, 2) || check(LEFT_ANGLE, 2))) {
+            auto type = templated("create var");
+            auto name = consume(IDENTIFIER, "Expected name after variable type.");
+            consume(EQUAL, "Expected '=' after variable name");
+            auto expr = expression();
+            return std::make_shared<CreateVar>(TypeName(type, name), expr);
+        }
+        if (match({LEFT_CURLY})) {
+            return std::make_shared<ScopeExpr>(scope());
+        }
+        if (match({SCOPE_KW})) {
+            return function();
+        }
+        if (match({RETURN_KW})) {
+            return std::make_shared<Return>(expression());
+        }
+        return expression();
+    }
+    catch (ParseException exception) {
+        synchronize();
+        return nullptr;
+    }
+    // throw handle_error(peek(), "Expected expression, variable set, variable create, function create, scope init, or return.");
 }
 
 auto cblang::parser::Parser::expression() -> std::shared_ptr<Expr> {
-    return equality();
+    return logic_or();
+}
+
+auto cblang::parser::Parser::logic_or() -> std::shared_ptr<Expr> {
+    auto expr = logic_and();
+
+    while (match({scanner::PIPE_PIPE})) {
+        scanner::Token oper = previous();
+        auto right = logic_and();
+        expr = std::make_shared<Logical>(expr, oper, right);
+    }
+
+    return expr;
+}
+
+auto cblang::parser::Parser::logic_and() -> std::shared_ptr<Expr> {
+    auto expr = equality();
+
+    while (match({AND_AND})) {
+        scanner::Token oper = previous();
+        auto right = equality();
+        expr = std::make_shared<Logical>(expr, oper, right);
+    }
+
+    return expr;
 }
 
 auto cblang::parser::Parser::equality() -> std::shared_ptr<Expr> {
@@ -304,28 +362,64 @@ auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
         return std::make_shared<Literal>(previous().literal);
     }
 
+    if (check(IDENTIFIER)) {
+        return function_or_variable();
+    }
+
+    if (match({LEFT_CURLY})) {
+        return std::make_shared<ScopeExpr>(scope());
+    }
+
     if (match({LEFT_PAREN})) {
         auto expr = expression();
         consume(RIGHT_PAREN, "Expected ')' after expression.");
         return std::make_shared<Grouping>(expr);
     }
 
-    throw handle_error(peek(), "Expected expression.");
+    throw handle_error(peek(), "Expected literal, identifier, '{', or '('.");
 }
 
-auto cblang::parser::Parser::check(const scanner::TokenType& type) const -> bool {
+auto cblang::parser::Parser::function_or_variable() -> std::shared_ptr<Accessible> {
+    if (check(LEFT_ANGLE, 2) || check(LEFT_PAREN, 2)) {
+        auto name = templated("function call");
+        std::vector<std::shared_ptr<Expr>> args;
+        consume(LEFT_PAREN, "Expected '(' after templated function name.");
+        if (!check(RIGHT_PAREN)) {
+            while (true) {
+                args.push_back(expression());
+                if (!match({COMMA})) {
+                    break;
+                }
+            }
+        }
+        consume(RIGHT_PAREN, "Expected ')' after parameter list.");
+        std::optional<std::shared_ptr<Accessible>> access;
+        if (match({DOT})) {
+            access = function_or_variable();
+        }
+        return std::make_shared<CallExpr>(access, name, args);
+    }
+    auto name = consume(IDENTIFIER, "Expected variable name.");
+    std::optional<std::shared_ptr<Accessible>> access;
+    if (match({DOT})) {
+        access = function_or_variable();
+    }
+    return std::make_shared<VarExpr>(access, name);
+}
+
+auto cblang::parser::Parser::check(const scanner::TokenType& type, const int& ahead) const -> bool {
     if (is_at_end()) {
         return false;
     }
-    return peek().type == type;
+    return peek(ahead).type == type;
 }
 
-auto cblang::parser::Parser::is_at_end() const -> bool {
-    return peek().type == scanner::END_OF_FILE;
+auto cblang::parser::Parser::is_at_end(const int& ahead) const -> bool {
+    return (current + ahead - 1 >= tokens.size() || peek(ahead).type == scanner::END_OF_FILE);
 }
 
-auto cblang::parser::Parser::peek() const -> scanner::Token {
-    return tokens.at(current);
+auto cblang::parser::Parser::peek(const int& ahead) const -> scanner::Token {
+    return tokens.at(current + ahead - 1);
 }
 
 auto cblang::parser::Parser::previous() const -> scanner::Token {

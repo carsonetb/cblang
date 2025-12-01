@@ -1,7 +1,7 @@
 #pragma once
 
-#include "definitions.h"
-#include "lexical.h"
+#include "definitions.hpp"
+#include "lexical.hpp"
 
 #include <cstdint>
 #include <memory>

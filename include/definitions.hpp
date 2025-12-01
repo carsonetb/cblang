@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lexical.h"
+#include "lexical.hpp"
 #include <cstdint>
 #include <string>
 #include <memory>

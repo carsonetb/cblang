@@ -1,4 +1,4 @@
-#include "util.h"
+#include "util.hpp"
 
 auto replace_all(std::string& str, const std::string& from, const std::string& replace_to) -> void {
     if (from.empty()) {

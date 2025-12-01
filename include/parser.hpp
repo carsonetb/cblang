@@ -1,6 +1,6 @@
 #pragma once 
 
-#include "scanner.h"
+#include "scanner.hpp"
 #include <exception>
 #include <memory>
 #include <optional>
@@ -18,10 +18,35 @@ namespace cblang::parser {
         std::vector<std::shared_ptr<Templated>> templates;
     };
 
-    using Parameters = std::vector<std::pair<std::shared_ptr<Templated>, scanner::Token>>;
+    using TypeName = std::pair<std::shared_ptr<Templated>, scanner::Token>;
+    using Parameters = std::vector<TypeName>;
 
-    struct Expr {
-        virtual ~Expr();
+    struct Statement {
+        virtual ~Statement();
+    };
+
+    struct Expr : Statement {
+
+    };
+
+    struct SetVar : Statement {
+        SetVar(scanner::Token p_name, std::shared_ptr<Expr> p_val) : name(std::move(p_name)), val(std::move(p_val)) {}
+
+        scanner::Token name;
+        std::shared_ptr<Expr> val;
+    };
+
+    struct CreateVar : Statement {
+        CreateVar(TypeName p_type_name, std::shared_ptr<Expr> p_val) : type_name(std::move(p_type_name)), val(std::move(p_val)) {}
+
+        TypeName type_name;
+        std::shared_ptr<Expr> val;
+    };
+
+    struct Return : Statement {
+        Return(std::shared_ptr<Expr> expr) : return_expression(std::move(expr)) {}
+
+        std::shared_ptr<Expr> return_expression;
     };
 
     struct Binary : Expr {
@@ -59,12 +84,37 @@ namespace cblang::parser {
         std::shared_ptr<Expr> right;
     };
 
-    struct Statement {
+    struct ScopeExpr : Expr {
+        ScopeExpr(std::vector<std::shared_ptr<Statement>> p_statements) : statements(std::move(p_statements)) {}
 
+        std::vector<std::shared_ptr<Statement>> statements;
     };
 
-    struct Declaration {
-        virtual ~Declaration();
+    struct Accessible : Expr {
+        Accessible(std::optional<std::shared_ptr<Accessible>> p_access) : access(std::move(p_access)) {}
+
+        std::optional<std::shared_ptr<Accessible>> access;
+    };
+
+    struct CallExpr : Accessible {
+        CallExpr(
+            std::optional<std::shared_ptr<Accessible>> p_access, 
+            std::shared_ptr<Templated> p_name, 
+            std::vector<std::shared_ptr<Expr>> p_args
+        ) : Accessible(std::move(p_access)), name(std::move(p_name)), args(std::move(p_args)) {}
+
+        std::shared_ptr<Templated> name;
+        std::vector<std::shared_ptr<Expr>> args;
+    };
+
+    struct VarExpr : Accessible {
+        VarExpr(std::optional<std::shared_ptr<Accessible>> p_access, scanner::Token p_name) : Accessible(std::move(p_access)), name(std::move(p_name)) {}
+
+        scanner::Token name;
+    };
+
+    struct Declaration : Statement {
+        
     };
 
     struct Function : Declaration {
@@ -144,15 +194,18 @@ namespace cblang::parser {
             auto scope() -> std::vector<std::shared_ptr<Statement>>;
             auto statement() -> std::shared_ptr<Statement>;
             auto expression() -> std::shared_ptr<Expr>;
+            auto logic_or() -> std::shared_ptr<Expr>;
+            auto logic_and() -> std::shared_ptr<Expr>;
             auto equality() -> std::shared_ptr<Expr>;
             auto comparison() -> std::shared_ptr<Expr>;
             auto term() -> std::shared_ptr<Expr>;
             auto factor() -> std::shared_ptr<Expr>;
             auto unary() -> std::shared_ptr<Expr>;
             auto primary() -> std::shared_ptr<Expr>;
-            [[nodiscard]] auto check(const scanner::TokenType& type) const -> bool;
-            [[nodiscard]] auto is_at_end() const -> bool;
-            [[nodiscard]] auto peek() const -> scanner::Token;
+            auto function_or_variable() -> std::shared_ptr<Accessible>;
+            [[nodiscard]] auto check(const scanner::TokenType& type, const int& ahead = 1) const -> bool;
+            [[nodiscard]] auto is_at_end(const int& ahead = 1) const -> bool;
+            [[nodiscard]] auto peek(const int& ahead = 1) const -> scanner::Token;
             [[nodiscard]] auto previous() const -> scanner::Token;
     };
 

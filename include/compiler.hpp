@@ -1,8 +1,8 @@
 #pragma once 
 
-#include "cblang.h"
-#include "definitions.h"
-#include "lexical.h"
+#include "cblang.hpp"
+#include "definitions.hpp"
+#include "lexical.hpp"
 
 #include <cstdint>
 #include <memory>

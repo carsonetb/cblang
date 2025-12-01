@@ -1,6 +1,6 @@
-#include "lexical.h"
-#include "definitions.h"
-#include "util.h"
+#include "lexical.hpp"
+#include "definitions.hpp"
+#include "util.hpp"
 
 #include <algorithm>
 #include <cassert>

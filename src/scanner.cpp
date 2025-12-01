@@ -1,5 +1,5 @@
-#include "scanner.h"
-#include "parser.h"
+#include "scanner.hpp"
+#include "parser.hpp"
 
 #include <memory>
 #include <spdlog/logger.h>
@@ -36,6 +36,7 @@ const std::unordered_map<std::string, TokenType> cblang::scanner::Scanner::keywo
     {"const", CONST_KW},
     {"scope", SCOPE_KW},
     {"super", SUPER_KW},
+    {"return", RETURN_KW}
 };
 
 cblang::scanner::Scanner::Scanner(std::string p_source) : source(std::move(p_source)) {}
@@ -73,7 +74,10 @@ auto cblang::scanner::Scanner::scan_token() -> void {
         case ':': add_token(COLON); break;
         case '^': add_token(CARET); break;
         case '%': add_token(MODULO); break;
-        case '|': add_token(PIPE); break;
+        case '|': 
+            if (match('|')) { add_token(PIPE_PIPE); }
+            else if (match('=')) { add_token(PIPE_EQUAL); }
+            else { add_token(PIPE); }
         case '-': 
             add_token(match('>') ? RETURN : MINUS); 
             break;

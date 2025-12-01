@@ -1,6 +1,6 @@
-#include "objects.h"
+#include "objects.hpp"
 
-#include "definitions.h"
+#include "definitions.hpp"
 
 #include <functional>
 #include <memory>

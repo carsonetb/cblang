@@ -1,7 +1,7 @@
-#include "compiler.h"
-#include "cblang.h"
-#include "definitions.h"
-#include "lexical.h"
+#include "compiler.hpp"
+#include "cblang.hpp"
+#include "definitions.hpp"
+#include "lexical.hpp"
 
 #include <memory>
 #include <spdlog/logger.h>
