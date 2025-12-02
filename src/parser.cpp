@@ -533,7 +533,7 @@ auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0)
     auto as_function = std::dynamic_pointer_cast<Function>(decl);
     if (as_function) {
         out += "Function declaration: \n";
-        out += __TABBING + "Name: " + debug_templates(as_function->name, tabs + 1);
+        out += __TABBING + "Name: " + debug_templates(as_function->templated_name, tabs + 1);
         out += __TABBING + "Parameters: \n" + debug_parameters(as_function->params, tabs + 1); out += NEWLINE;
         if (as_function->returns) {
             out += __TABBING + "Returns: " + as_function->returns.value().raw; out += NEWLINE;

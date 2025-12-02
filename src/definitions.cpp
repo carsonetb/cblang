@@ -6,10 +6,12 @@
 #include <utility>
 #include <vector>
 
+#define CLASS_TYPE std::make_shared<TemplatedType>(std::make_shared<ClassDefinition>("class", std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<TemplateDefinition>>()), std::vector<std::shared_ptr<TemplatedType>>()) // bruh
+
 using namespace cblang::definitions;
 
 cblang::definitions::MemberDefinition::MemberDefinition(
-    TemplatedDefinition type,
+    std::shared_ptr<TemplatedType> type,
     std::string name,
     std::optional<std::shared_ptr<parser::Expr>> initializer
 ) : type(std::move(type)), name(std::move(name)), initializer(std::move(initializer)) {}
@@ -20,8 +22,8 @@ cblang::definitions::FunctionMember::FunctionMember(
     std::string name, 
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
-    std::shared_ptr<ClassDefinition> p_returns
-) : MemberDefinition(TemplatedDefinition(std::make_shared<FunctionDefinition>(), {}), std::move(name), {}), // Maybe this has an initializer as the scope {}? 
+    std::optional<std::shared_ptr<ClassDefinition>> p_returns
+) : MemberDefinition(std::make_shared<TemplatedType>(std::make_shared<FunctionDefinition>(), std::vector<std::shared_ptr<TemplatedType>>()), std::move(name), {}), // Maybe this has an initializer as the scope {}? 
     parameters(std::move(p_parameters)), 
     templates(std::move(p_templates)), 
     returns(std::move(p_returns))
@@ -36,7 +38,11 @@ cblang::definitions::ClassDefinition::ClassDefinition(
     std::vector<std::shared_ptr<MemberDefinition>> p_params,
     std::vector<std::shared_ptr<MemberDefinition>> p_members,
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates
-) : templated_type_name(std::move(p_templated_type_name)), params(std::move(p_params)), members(std::move(p_members)), templates(std::move(p_templates)) 
+) : MemberDefinition(CLASS_TYPE, split(p_templated_type_name, "<")[0], std::optional<std::shared_ptr<parser::Expr>>()), // Cooked
+    templated_type_name(std::move(p_templated_type_name)), 
+    params(std::move(p_params)), 
+    members(std::move(p_members)), 
+    templates(std::move(p_templates)) 
 {
     type_name = split(p_templated_type_name, "<")[0];
     for (const auto& member : p_members) {
@@ -46,8 +52,6 @@ cblang::definitions::ClassDefinition::ClassDefinition(
         templates_by_name[templ->template_name] = templ;
     }
 };
-
-cblang::definitions::ClassDefinition::~ClassDefinition() = default;
 
 cblang::definitions::UserDefinition::UserDefinition(
     const std::string& p_name, 

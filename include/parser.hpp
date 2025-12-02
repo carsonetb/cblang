@@ -129,9 +129,9 @@ namespace cblang::parser {
             Parameters p_params, 
             std::optional<scanner::Token> p_returns,
             std::vector<std::shared_ptr<Statement>> p_body
-        ) : name(std::move(p_name)), params(std::move(p_params)), returns(std::move(p_returns)), body(std::move(p_body)) {}
+        ) : templated_name(std::move(p_name)), params(std::move(p_params)), returns(std::move(p_returns)), body(std::move(p_body)) {}
 
-        std::shared_ptr<Templated> name;
+        std::shared_ptr<Templated> templated_name;
         Parameters params;
         std::optional<scanner::Token> returns;
         std::vector<std::shared_ptr<Statement>> body;

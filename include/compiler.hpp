@@ -3,12 +3,16 @@
 #include "cblang.hpp"
 #include "definitions.hpp"
 #include "parser.hpp"
+#include "scanner.hpp"
+#include <exception>
 #include <memory>
 #include <vector>
 
 namespace cblang::compiler {
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
+
+    class CompileException : std::exception {};
 
     class Compiler {
         public:
@@ -18,19 +22,23 @@ namespace cblang::compiler {
 
         private:
             std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes = {
-                {"bool", std::make_shared<definitions::BoolDefinition>()},
-                {"int", std::make_shared<definitions::StringDefinition>()},
-                {"char", std::make_shared<definitions::CharDefinition>()},
-                {"string", std::make_shared<definitions::StringDefinition>()},
-                {"array", std::make_shared<definitions::ArrayDefinition>()},
+                {"bool", std::make_shared<BoolDefinition>()},
+                {"int", std::make_shared<StringDefinition>()},
+                {"char", std::make_shared<CharDefinition>()},
+                {"string", std::make_shared<StringDefinition>()},
+                {"array", std::make_shared<ArrayDefinition>()},
             };
 
             std::shared_ptr<parser::ParsedProgram> source;
 
+            auto get_class(const scanner::Token& token, const std::string& name) const -> std::shared_ptr<ClassDefinition>;
+
             auto main() -> std::shared_ptr<UserDefinition>;
-            auto class_params(const parser::Parameters& input) -> std::vector<std::shared_ptr<MemberDefinition>>;
-            auto class_members(const std::vector<std::shared_ptr<parser::Declaration>>& input) -> std::vector<std::shared_ptr<MemberDefinition>>;
+            auto process_class(const std::shared_ptr<parser::Class>& input) -> std::shared_ptr<ClassDefinition>;
+            auto process_params(const parser::Parameters& input) -> std::vector<std::shared_ptr<MemberDefinition>>;
+            auto class_members(const std::vector<std::shared_ptr<parser::Declaration>>& inputs) -> std::vector<std::shared_ptr<MemberDefinition>>;
             auto class_templates(const std::shared_ptr<parser::Class>& input) -> std::vector<std::shared_ptr<TemplateDefinition>>;
-            auto process_templated(const std::shared_ptr<parser::Templated>& input) -> TemplatedDefinition;
+            auto process_templated(const std::shared_ptr<parser::Templated>& input) -> std::shared_ptr<TemplatedType>;
+            auto process_templated_definition(const std::shared_ptr<parser::Templated>& input) -> std::vector<std::shared_ptr<TemplateDefinition>>;
     };
 }

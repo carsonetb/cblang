@@ -14,9 +14,7 @@ namespace cblang::definitions {
     class ClassDefinition;
     class TemplateDefinition;
     class Scope;
-
-    using TemplatedDefinition = std::pair<std::shared_ptr<ClassDefinition>, std::vector<std::shared_ptr<TemplateDefinition>>>;
-
+    
     enum class LiteralType : uint8_t {
         BOOL,
         INT,
@@ -26,17 +24,27 @@ namespace cblang::definitions {
         INVALID,
     };
 
+    struct TemplatedType {
+        TemplatedType(
+            std::shared_ptr<ClassDefinition> p_cls,
+            std::vector<std::shared_ptr<TemplatedType>> p_templates
+        ) : cls(std::move(p_cls)), templates(std::move(p_templates)) {}
+
+        std::shared_ptr<ClassDefinition> cls;
+        std::vector<std::shared_ptr<TemplatedType>> templates;
+    };
+
     class MemberDefinition {
         public:
             MemberDefinition(
-                TemplatedDefinition type,
+                std::shared_ptr<TemplatedType> type,
                 std::string name,
                 std::optional<std::shared_ptr<parser::Expr>> initializer
             );
             virtual ~MemberDefinition();
 
             std::string name;
-            TemplatedDefinition type;
+            std::shared_ptr<TemplatedType> type;
             std::optional<std::shared_ptr<parser::Expr>> initializer;
 
             bool is_static = false;
@@ -50,18 +58,18 @@ namespace cblang::definitions {
                 std::string name, 
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
-                std::shared_ptr<ClassDefinition> p_returns
+                std::optional<std::shared_ptr<ClassDefinition>> p_returns
             );
 
             std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
-            std::shared_ptr<ClassDefinition> returns;
+            std::optional<std::shared_ptr<ClassDefinition>> returns;
 
             auto validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<ClassDefinition>> args) -> bool;
     };
 
-    class ClassDefinition {
+    class ClassDefinition : public MemberDefinition {
         public:
             ClassDefinition(
                 std::string p_templated_type_name,
@@ -69,7 +77,6 @@ namespace cblang::definitions {
                 std::vector<std::shared_ptr<MemberDefinition>> p_members,
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates
             );
-            virtual ~ClassDefinition();
 
             bool invalid = false;
 
@@ -81,8 +88,8 @@ namespace cblang::definitions {
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
 
-            virtual auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool = 0;
-            virtual auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool = 0;
+            virtual auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool;
+            virtual auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool;
     };
 
     class UserDefinition : public ClassDefinition {
