@@ -141,7 +141,7 @@ auto cblang::compiler::Compiler::process_templated(const std::shared_ptr<parser:
     auto cls = get_class(input->name, input->name.raw);
     std::vector<std::shared_ptr<TemplatedType>> templates;
     for (const auto& templated : input->templates) {
-        templates.push_back(process_templated(input));
+        templates.push_back(process_templated(templated));
     }
     return std::make_shared<TemplatedType>(cls, templates);
 }
