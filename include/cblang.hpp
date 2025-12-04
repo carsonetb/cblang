@@ -42,7 +42,7 @@ namespace cblang {
 
     class Program {
         public:
-            std::vector<ParseError> errors;
+            bool valid = false;
             std::shared_ptr<UserDefinition> main_class;
     };
 

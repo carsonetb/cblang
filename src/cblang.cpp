@@ -45,7 +45,7 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
         logger->error("cblang not initialized (call cblang::init)");
         return {};
     }
-    logger->info("Request to parse code, beginning.");
+    logger->info("Request to parse and compile code, beginning.");
     scanner::Scanner scanner(code);
     auto tokens = scanner.scan_tokens();
     parser::Parser parser(tokens);
@@ -54,7 +54,9 @@ auto cblang::cblang_parse_code(const std::string& code) -> Program {
         logger->error("Error parsing code.");
         return {};
     }
-    logger->info("Finished parsing code.");
+    compiler::Compiler compiler(program.value());
+    auto compiled_program = compiler.compile();
+    logger->info("Finished parsing and compiling code.");
 
     // if (compiler_out.errors.empty()) {
     //     logger->info("Compiled program has no errors.");

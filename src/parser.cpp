@@ -488,15 +488,6 @@ auto debug_expression(const std::shared_ptr<Expr>& expr, const int& tabs) -> std
     return "This type needs debugging!";
 }
 
-auto debug_templates(const std::shared_ptr<Templated>& decl, const int& tabs = 0, const bool& one_line = false) -> std::string {
-    std::string out = decl->name.raw + (one_line ? "" : "\n");
-    for (const auto& templated : decl->templates) {
-        out += (one_line ? "<" : (__TABBING + "Template: ")) + debug_templates(templated, tabs + 1, one_line) + (one_line ? ">" : "");
-        if (!one_line) { out += NEWLINE; }
-    }
-    return out;
-}
-
 auto debug_parameters(const Parameters& params, const int& tabs = 0) -> std::string {
     std::string out;
     for (const auto& param : params) {
@@ -552,6 +543,15 @@ auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0)
     }
     if (out.empty()) {
         return "This type needs debugging!";
+    }
+    return out;
+}
+
+auto cblang::parser::debug_templates(const std::shared_ptr<Templated>& decl, const int& tabs, const bool& one_line) -> std::string {
+    std::string out = decl->name.raw + (one_line ? "" : "\n");
+    for (const auto& templated : decl->templates) {
+        out += (one_line ? "<" : (__TABBING + "Template: ")) + debug_templates(templated, tabs + 1, one_line) + (one_line ? ">" : "");
+        if (!one_line) { out += NEWLINE; }
     }
     return out;
 }

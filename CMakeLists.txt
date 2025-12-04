@@ -14,9 +14,9 @@ find_package(spdlog REQUIRED)
 
 
 
-add_library(cblang src/cblang.cpp src/definitions.cpp src/objects.cpp src/compiler.cpp src/scanner.cpp src/parser.cpp src/lexical.cpp src/util.cpp)
+add_library(cblang src/cblang.cpp src/definitions.cpp src/objects.cpp src/compiler.cpp src/scanner.cpp src/parser.cpp src/util.cpp)
 target_include_directories(cblang PUBLIC include)
 target_link_libraries(cblang PRIVATE spdlog::spdlog)
 
-set_target_properties(cblang PROPERTIES PUBLIC_HEADER "include/cblang.h;include/definitions.h;include/objects.h;include/compiler.h;include/scanner.h;lexical.h;parser.h")
+set_target_properties(cblang PROPERTIES PUBLIC_HEADER "include/cblang.h;include/definitions.h;include/objects.h;include/compiler.h;include/scanner.h;include/parser.h")
 install(TARGETS cblang)

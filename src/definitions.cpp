@@ -1,4 +1,5 @@
 #include "definitions.hpp"
+#include "parser.hpp"
 #include "util.hpp"
 
 #include <memory>
@@ -6,9 +7,9 @@
 #include <utility>
 #include <vector>
 
-#define CLASS_TYPE std::make_shared<TemplatedType>(std::make_shared<ClassDefinition>("class", std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<TemplateDefinition>>()), std::vector<std::shared_ptr<TemplatedType>>()) // bruh
-
 using namespace cblang::definitions;
+
+static const auto CLASS_TYPE = std::make_shared<TemplatedType>(std::make_shared<ClassDefinition>("class", std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<TemplateDefinition>>()), std::vector<std::shared_ptr<TemplatedType>>());
 
 cblang::definitions::MemberDefinition::MemberDefinition(
     std::shared_ptr<TemplatedType> type,
@@ -22,11 +23,13 @@ cblang::definitions::FunctionMember::FunctionMember(
     std::string name, 
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
-    std::optional<std::shared_ptr<ClassDefinition>> p_returns
+    std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+    std::vector<std::shared_ptr<parser::Statement>> p_code
 ) : MemberDefinition(std::make_shared<TemplatedType>(std::make_shared<FunctionDefinition>(), std::vector<std::shared_ptr<TemplatedType>>()), std::move(name), {}), // Maybe this has an initializer as the scope {}? 
     parameters(std::move(p_parameters)), 
     templates(std::move(p_templates)), 
-    returns(std::move(p_returns))
+    returns(std::move(p_returns)),
+    code(std::move(p_code))
 {
     for (const auto& template_param : templates) {
         templates_by_name[template_param->template_name] = template_param;
@@ -44,14 +47,22 @@ cblang::definitions::ClassDefinition::ClassDefinition(
     members(std::move(p_members)), 
     templates(std::move(p_templates)) 
 {
-    type_name = split(p_templated_type_name, "<")[0];
-    for (const auto& member : p_members) {
+    type_name = split(templated_type_name, "<")[0];
+    for (const auto& member : params) {
         members_by_name[member->name] = member;
     }
-    for (const auto& templ : p_templates) {
+    for (const auto& templ : templates) {
         templates_by_name[templ->template_name] = templ;
     }
 };
+
+auto cblang::definitions::ClassDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
+    return false;
+}
+
+auto cblang::definitions::ClassDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
+    return false;
+}
 
 cblang::definitions::UserDefinition::UserDefinition(
     const std::string& p_name, 
@@ -120,22 +131,6 @@ auto cblang::definitions::StringDefinition::can_convert_to(std::shared_ptr<Class
 
 cblang::definitions::ArrayDefinition::ArrayDefinition() : ClassDefinition("array<value_type>", {}, {}, {std::make_shared<TemplateDefinition>("value_type")}) {}
 
-auto cblang::definitions::ArrayDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
-    return false;
-}
-
-auto cblang::definitions::ArrayDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
-    return false;
-}
-
 cblang::definitions::FunctionDefinition::FunctionDefinition() : ClassDefinition("scope", {}, {}, {}) {}
-
-auto cblang::definitions::FunctionDefinition::is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool {
-    return false;
-}
-
-auto cblang::definitions::FunctionDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
-    return false;
-}
 
 cblang::definitions::TemplateDefinition::TemplateDefinition(std::string p_template_name) : template_name(std::move(p_template_name)) {}

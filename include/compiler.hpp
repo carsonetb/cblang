@@ -23,7 +23,7 @@ namespace cblang::compiler {
         private:
             std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes = {
                 {"bool", std::make_shared<BoolDefinition>()},
-                {"int", std::make_shared<StringDefinition>()},
+                {"int", std::make_shared<IntDefinition>()},
                 {"char", std::make_shared<CharDefinition>()},
                 {"string", std::make_shared<StringDefinition>()},
                 {"array", std::make_shared<ArrayDefinition>()},
@@ -39,6 +39,5 @@ namespace cblang::compiler {
             auto class_members(const std::vector<std::shared_ptr<parser::Declaration>>& inputs) -> std::vector<std::shared_ptr<MemberDefinition>>;
             auto class_templates(const std::shared_ptr<parser::Class>& input) -> std::vector<std::shared_ptr<TemplateDefinition>>;
             auto process_templated(const std::shared_ptr<parser::Templated>& input) -> std::shared_ptr<TemplatedType>;
-            auto process_templated_definition(const std::shared_ptr<parser::Templated>& input) -> std::vector<std::shared_ptr<TemplateDefinition>>;
     };
 }

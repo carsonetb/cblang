@@ -20,7 +20,7 @@ cblang::objects::Object::Object(
 ) : type(std::move(p_type)), template_array(p_templates) 
 {
     for (const auto& template_param : p_templates) {
-        templates[template_param->type_name] = template_param;
+        templates[template_param->template_name] = template_param;
     }
 }
 

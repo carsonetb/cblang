@@ -58,13 +58,15 @@ namespace cblang::definitions {
                 std::string name, 
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
-                std::optional<std::shared_ptr<ClassDefinition>> p_returns
+                std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+                std::vector<std::shared_ptr<parser::Statement>> p_code
             );
 
             std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
             std::optional<std::shared_ptr<ClassDefinition>> returns;
+            std::vector<std::shared_ptr<parser::Statement>> code;
 
             auto validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<ClassDefinition>> args) -> bool;
     };
@@ -148,17 +150,11 @@ namespace cblang::definitions {
     class ArrayDefinition : public ClassDefinition {
         public:
             ArrayDefinition();
-
-            auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
     };
 
     class FunctionDefinition : public ClassDefinition {
         public: 
             FunctionDefinition();
-
-            auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
-            auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
     };
 
     class TemplateDefinition  {

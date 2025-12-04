@@ -1,19 +1,4 @@
 // Certainly this is not valid code.
-class Main (Alpha<Temp> beta, Alpha cheta) = (
-    X<Temp> y = 1, 
-    scope function<Templ>(X y, Foo bar) -> Foo = {
-        a == b;
-        a = b(1, 2, c);
-        X<t> a = c == [5, foo, [bar]];
-        scope inner<Templ>(Foo bar, Boo far) -> Hoo = {
-            a == b;
-        };
-        {
-            a = 2 + 1;
-        };
-        return 2;
-    }, 
-    class Sub<Temp2> : Foo<Temp2> (Ahpla etab) = (
-        X y = 2
-    )
+class Main (int alpha, char beta) = (
+
 ) 
