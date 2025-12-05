@@ -9,7 +9,7 @@ auto main(int argc, char *argv[]) -> int {
 
     if (argc < 2) {
         std::cerr << "Expected file to parse!\n";
-        return 1;
+        return 0;
     }
 
     std::ifstream file(args[1]);
