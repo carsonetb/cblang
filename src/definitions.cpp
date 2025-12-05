@@ -48,7 +48,7 @@ cblang::definitions::ClassDefinition::ClassDefinition(
     templates(std::move(p_templates)) 
 {
     type_name = split(templated_type_name, "<")[0];
-    for (const auto& member : params) {
+    for (const auto& member : members) {
         members_by_name[member->name] = member;
     }
     for (const auto& templ : templates) {

@@ -181,7 +181,7 @@ auto cblang::parser::Parser::parameters(bool optional) -> Parameters {
             }
         }
     }
-    consume(RIGHT_PAREN, "Expected ')' after parameters.");
+    consume(RIGHT_PAREN, "Expected ')' or ',' after a parameter.");
     return out;
 }
 
@@ -210,7 +210,7 @@ auto cblang::parser::Parser::members() -> std::vector<std::shared_ptr<Declaratio
             break;
         }
     }
-    consume(RIGHT_PAREN, "Expected ')' after members.");
+    consume(RIGHT_PAREN, "Expected ')' or ',' after a member.");
     return out;
 }
 

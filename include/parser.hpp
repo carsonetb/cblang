@@ -216,7 +216,7 @@ namespace cblang::parser {
 
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
-    auto debug_templates(const std::shared_ptr<Templated>& decl, const int& tabs = 0, const bool& one_line = false) -> std::string;
+    auto debug_templates(const std::shared_ptr<Templated>& decl, const int& tabs = 0, const bool& one_line = true) -> std::string;
     auto debug_program(const std::shared_ptr<ParsedProgram>& program) -> std::string;
     auto debug_members(const std::vector<std::shared_ptr<Declaration>>& decls, const int& tabs = 0) -> std::string;
 }

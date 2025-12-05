@@ -93,7 +93,7 @@ auto cblang::compiler::Compiler::process_class(const std::shared_ptr<parser::Cla
         members.push_back(param);
     }
     auto templates = process_templated_definition(input->name);
-    auto out = std::make_shared<ClassDefinition>(templated_name, params, members, templates);
+    auto out = std::make_shared<definitions::UserDefinition>(templated_name, params, members, templates);
     defined_classes[out->type_name] = out;
     return out;
 }
