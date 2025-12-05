@@ -18,7 +18,7 @@ namespace cblang::objects {
 
     class Object {
         public:
-            Object(std::shared_ptr<ClassDefinition> p_type, const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates);
+            Object(std::shared_ptr<ClassDefinition> p_type, std::vector<std::shared_ptr<TemplateDefinition>> p_templates);
             virtual ~Object();
 
             std::string name;

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "parser.hpp"
+#include "scanner.hpp"
 #include <cstdint>
 #include <optional>
-#include <string>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -38,12 +39,12 @@ namespace cblang::definitions {
         public:
             MemberDefinition(
                 std::shared_ptr<TemplatedType> type,
-                std::string name,
+                scanner::Token name,
                 std::optional<std::shared_ptr<parser::Expr>> initializer
             );
             virtual ~MemberDefinition();
 
-            std::string name;
+            scanner::Token name;
             std::shared_ptr<TemplatedType> type;
             std::optional<std::shared_ptr<parser::Expr>> initializer;
 
@@ -55,13 +56,14 @@ namespace cblang::definitions {
     class FunctionMember : public MemberDefinition {
         public:
             FunctionMember(
-                std::string name, 
-                std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
-                std::vector<std::shared_ptr<TemplateDefinition>> p_templates, 
+                const std::shared_ptr<parser::Templated>& p_name,
+                std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
                 std::optional<std::shared_ptr<ClassDefinition>> p_returns,
                 std::vector<std::shared_ptr<parser::Statement>> p_code
             );
 
+            scanner::Token function_name;
+            std::shared_ptr<parser::Templated> templated_name;
             std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
@@ -74,16 +76,15 @@ namespace cblang::definitions {
     class ClassDefinition : public MemberDefinition {
         public:
             ClassDefinition(
-                std::string p_templated_type_name,
+                std::shared_ptr<parser::Templated> p_name,
                 std::vector<std::shared_ptr<MemberDefinition>> p_params,
-                std::vector<std::shared_ptr<MemberDefinition>> p_members,
-                std::vector<std::shared_ptr<TemplateDefinition>> p_templates
+                std::vector<std::shared_ptr<MemberDefinition>> p_members
             );
 
             bool invalid = false;
 
-            std::string type_name;
-            std::string templated_type_name;
+            std::string pretty_name;
+            std::shared_ptr<parser::Templated> type_name;
             std::vector<std::shared_ptr<MemberDefinition>> params;
             std::unordered_map<std::string, std::shared_ptr<MemberDefinition>> members_by_name;
             std::vector<std::shared_ptr<MemberDefinition>> members;
@@ -97,10 +98,9 @@ namespace cblang::definitions {
     class UserDefinition : public ClassDefinition {
         public:
             UserDefinition(
-                const std::string& name, 
+                const std::shared_ptr<parser::Templated>& name, 
                 const std::vector<std::shared_ptr<MemberDefinition>>& p_params,
-                const std::vector<std::shared_ptr<MemberDefinition>>& p_members, 
-                const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates
+                const std::vector<std::shared_ptr<MemberDefinition>>& p_members
             );
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
@@ -159,9 +159,9 @@ namespace cblang::definitions {
 
     class TemplateDefinition  {
         public:
-            TemplateDefinition(std::string p_template_name);
+            TemplateDefinition(scanner::Token p_template_name);
 
-            std::string template_name;
+            scanner::Token template_name;
             std::optional<std::shared_ptr<ClassDefinition>> template_used;
     };
 }

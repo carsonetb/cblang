@@ -16,11 +16,11 @@ using namespace std::placeholders;
 
 cblang::objects::Object::Object(
     std::shared_ptr<ClassDefinition> p_type,
-    const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates
-) : type(std::move(p_type)), template_array(p_templates) 
+    std::vector<std::shared_ptr<TemplateDefinition>> p_templates
+) : type(std::move(p_type)), template_array(std::move(p_templates)) 
 {
-    for (const auto& template_param : p_templates) {
-        templates[template_param->template_name] = template_param;
+    for (const auto& template_param : template_array) {
+        templates[template_param->template_name.raw] = template_param;
     }
 }
 
@@ -141,11 +141,11 @@ cblang::objects::StringObject::StringObject(__NAME_TEMPLATE_PARAMS) : __INIT_OBJ
 cblang::objects::StringObject::StringObject(__NAME_TEMPLATE_PARAMS, std::string p_value) : __INIT_OBJECT(StringDefinition), value(std::move(p_value)) {}
 
 auto cblang::objects::StringObject::cast(std::shared_ptr<Object> obj) -> int {
-    if (obj->type->type_name == "string") {
+    if (obj->type->pretty_name == "string") {
         value = std::static_pointer_cast<StringObject>(obj)->value;
         return 0;
     }
-    if (obj->type->templated_type_name == "vector<char>") {
+    if (obj->type->pretty_name == "vector<char>") {
         std::string out;
         std::vector<std::shared_ptr<Object>> string_vector = std::static_pointer_cast<ArrayObject>(obj)->value;
         for (const auto& string_object : string_vector) {
@@ -158,11 +158,11 @@ auto cblang::objects::StringObject::cast(std::shared_ptr<Object> obj) -> int {
 }
 
 auto cblang::objects::StringObject::cast_into(std::shared_ptr<Object> obj) -> int {
-    if (obj->type->type_name == "string") {
+    if (obj->type->pretty_name == "string") {
         std::static_pointer_cast<StringObject>(obj)->value = value;
         return 0;
     }
-    if (obj->type->type_name == "vector<char>") {
+    if (obj->type->pretty_name == "vector<char>") {
         auto as_array = std::static_pointer_cast<ArrayObject>(obj);
         for (char character : value) {
             auto char_obj = std::make_shared<CharObject>(std::vector<std::shared_ptr<TemplateDefinition>>(), character);
@@ -188,7 +188,7 @@ cblang::objects::ArrayObject::ArrayObject(__NAME_TYPE_TEMPLATE_PARAMS, std::vect
 auto cblang::objects::ArrayObject::init_internal() -> void {}
 
 auto cblang::objects::ArrayObject::cast(std::shared_ptr<Object> obj) -> int {
-    if (obj->type->templated_type_name == type->templated_type_name) {
+    if (obj->type->pretty_name == type->pretty_name) {
         value = std::static_pointer_cast<ArrayObject>(obj)->value;
         return 0;
     }

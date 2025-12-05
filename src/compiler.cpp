@@ -3,6 +3,7 @@
 #include "definitions.hpp"
 #include "parser.hpp"
 #include "scanner.hpp"
+#include "util.hpp"
 
 #include <memory>
 #include <optional>
@@ -18,15 +19,10 @@ using namespace cblang;
 static bool initialized = false;
 static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_st("cblang::compiler");
 
-static auto handle_error(const scanner::Token& token, const std::string& error) -> CompileException {
-    logger->error("[line " + std::to_string(token.line) + "] [token " + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "] " + error);
-    return {};
-}
-
 static auto process_templated_definition(const std::shared_ptr<parser::Templated>& input) -> std::vector<std::shared_ptr<TemplateDefinition>> {
     std::vector<std::shared_ptr<TemplateDefinition>> out;
     for (const auto& templdef : input->templates) {
-        out.push_back(std::make_shared<TemplateDefinition>(templdef->name.raw));
+        out.push_back(std::make_shared<TemplateDefinition>(templdef->name));
     }
     return out;
 }
@@ -47,6 +43,11 @@ auto cblang::compiler::init(bool verbose) -> void {
 auto cblang::compiler::enable_verbose_logs() -> void {
     logger->set_level(spdlog::level::debug);
     logger->info("Verbose logs enabled.");
+}
+
+auto cblang::compiler::handle_error(const scanner::Token& token, const std::string& error) -> CompileException {
+    logger->error("[line " + std::to_string(token.line) + "] [token " + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "] " + error);
+    return {};
 }
 
 auto cblang::compiler::Compiler::get_class(const scanner::Token& token, const std::string& name) const -> std::shared_ptr<ClassDefinition> {
@@ -81,20 +82,17 @@ auto cblang::compiler::Compiler::main() -> std::shared_ptr<definitions::UserDefi
     for (const auto& param : params) {
         members.push_back(param);
     }
-    std::vector<std::shared_ptr<definitions::TemplateDefinition>> templates;
-    return std::make_shared<definitions::UserDefinition>("Main", params, members, templates);
+    return std::make_shared<definitions::UserDefinition>(TEMPLATED_EMPTY("Main"), params, members);
 }
 
 auto cblang::compiler::Compiler::process_class(const std::shared_ptr<parser::Class>& input) -> std::shared_ptr<ClassDefinition> {
-    auto templated_name = parser::debug_templates(input->name);
     auto params = process_params(input->params);
     auto members = class_members(input->members);
     for (const auto& param : params) {
         members.push_back(param);
     }
-    auto templates = process_templated_definition(input->name);
-    auto out = std::make_shared<definitions::UserDefinition>(templated_name, params, members, templates);
-    defined_classes[out->type_name] = out;
+    auto out = std::make_shared<definitions::UserDefinition>(input->name, params, members);
+    defined_classes[out->type_name->name.raw] = out;
     return out;
 }
 
@@ -102,7 +100,7 @@ auto cblang::compiler::Compiler::process_params(const parser::Parameters& input)
     std::vector<std::shared_ptr<MemberDefinition>> out;
     for (const auto& param : input) {
         auto type = process_templated(param.first);
-        auto name = param.second.raw;
+        auto name = param.second;
         std::optional<std::shared_ptr<parser::Expr>> expression; // Expressions need to be supported in Parameters!!!
         out.push_back(std::make_shared<MemberDefinition>(type, name, expression));
     }
@@ -116,17 +114,17 @@ auto cblang::compiler::Compiler::class_members(const std::vector<std::shared_ptr
         auto as_variable = std::dynamic_pointer_cast<parser::Variable>(declaration);
         auto as_class = std::dynamic_pointer_cast<parser::Class>(declaration);
         if (as_function) {
-            std::string name = as_function->templated_name->name.raw;
+            auto name = as_function->templated_name;
             auto params = process_params(as_function->params);
             auto templates = process_templated_definition(as_function->templated_name);
             std::optional<std::shared_ptr<ClassDefinition>> returns;
             if (as_function->returns) {
                 returns = get_class(as_function->returns.value(), as_function->returns->raw);
             }
-            out.push_back(std::make_shared<FunctionMember>(name, params, templates, returns, as_function->body));
+            out.push_back(std::make_shared<FunctionMember>(name, params, returns, as_function->body));
         }
         else if (as_variable) {
-            std::string name = as_variable->name.raw;
+            auto name = as_variable->name;
             auto type = process_templated(as_variable->type);
             out.push_back(std::make_shared<MemberDefinition>(type, name, as_variable->value));
         }

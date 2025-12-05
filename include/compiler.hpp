@@ -14,6 +14,8 @@ namespace cblang::compiler {
 
     class CompileException : std::exception {};
 
+    auto handle_error(const scanner::Token& token, const std::string& error) -> CompileException;
+
     class Compiler {
         public:
             Compiler(std::shared_ptr<parser::ParsedProgram> p_source) : source(std::move(p_source)) {}
