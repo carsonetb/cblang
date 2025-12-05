@@ -2,7 +2,7 @@
 class Main (int alpha, char beta) = (
     int x = 0,
     scope func = {},
-    class Sub (int alpha2, char beta2) = (
+    class Sub<T, U> (int alpha2, char beta2) = (
 
     ),
     Sub v

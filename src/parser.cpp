@@ -115,8 +115,8 @@ auto cblang::parser::Parser::templated(const std::string& scope, const bool& def
     std::vector<std::shared_ptr<Templated>> templates;
     if (match({LEFT_ANGLE})) {
         while (true) {
-            templates.push_back(templated("',' in template scope or '<'", definition));
-            if (!check(COMMA)) {
+            templates.push_back(templated("template scope seperator", definition));
+            if (!match({COMMA})) {
                 break;
             }
         }

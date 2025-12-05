@@ -14,7 +14,6 @@ namespace cblang::definitions {
     class Object;
     class ClassDefinition;
     class TemplateDefinition;
-    class Scope;
     
     enum class LiteralType : uint8_t {
         BOOL,

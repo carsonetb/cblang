@@ -53,7 +53,7 @@ cblang::definitions::ClassDefinition::ClassDefinition(
 {
     for (const auto& member : members) {
         if (members_by_name.contains(member->name.raw)) {
-            throw compiler::handle_error(member->name, "A member of name " + member->name.raw + " already exists!");
+            throw compiler::handle_error(member->name, "A member of name " + member->name.raw + " already exists! (defined on line " + std::to_string(members_by_name[member->name.raw]->name.line) + ")");
         }
         members_by_name[member->name.raw] = member;
     }
