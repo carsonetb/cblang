@@ -5,6 +5,7 @@
 #include <vector>
 
 #define CHECK_INITIALIZED if (!initialized) { logger->error("cblang not initialized (call cblang::init)"); return; }
+#define TEMPLATED_EMPTY(name) std::make_shared<cblang::parser::Templated>(cblang::scanner::Token(cblang::scanner::IDENTIFIER, name, -1), std::vector<std::shared_ptr<cblang::parser::Templated>>())
 
 template <typename T>
 auto vector_contains(std::vector<T> vec, T check) {

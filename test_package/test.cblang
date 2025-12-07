@@ -1,6 +1,9 @@
 // Certainly this is not valid code.
 class Main (int alpha, char beta) = (
-    int x = 1,
-    char y = 2,
-    array<int> int_arr = [5, 4, 3, 2, 1]
+    int x = 0,
+    scope func = {},
+    class Sub<T, U> (int alpha2, char beta2) = (
+
+    ),
+    Sub v
 ) 
