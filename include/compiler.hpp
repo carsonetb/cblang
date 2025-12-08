@@ -3,6 +3,7 @@
 #include "cblang.hpp"
 #include "definitions.hpp"
 #include "parser.hpp"
+#include "program.hpp"
 #include "scanner.hpp"
 #include <exception>
 #include <memory>
@@ -20,7 +21,7 @@ namespace cblang::compiler {
         public:
             Compiler(std::shared_ptr<parser::ParsedProgram> p_source) : source(std::move(p_source)) {}
 
-            auto compile() -> Program;
+            auto compile() -> std::shared_ptr<program::Program>;
 
         private:
             std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes = {

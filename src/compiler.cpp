@@ -2,6 +2,7 @@
 #include "cblang.hpp"
 #include "definitions.hpp"
 #include "parser.hpp"
+#include "program.hpp"
 #include "scanner.hpp"
 #include "util.hpp"
 
@@ -57,21 +58,23 @@ auto cblang::compiler::Compiler::get_class(const scanner::Token& token, const st
     throw handle_error(token, "Class '" + name + "' not defined yet.");  
 }
 
-auto cblang::compiler::Compiler::compile() -> Program {
+auto cblang::compiler::Compiler::compile() -> std::shared_ptr<program::Program> {
     logger->info("Compiler started.");
 
-    Program out;
+    std::shared_ptr<UserDefinition> main_class;
 
     try {
-        out.main_class = main();
+        main_class = main();
     }
     catch (CompileException exception) {
         logger->error("Errors compiling.");
         return {};
     }
 
+    auto out = std::make_shared<program::Program>(main_class);
+
     logger->info("Compiler finished successfully.");
-    out.valid = true;
+    out->valid = true;
 
     return out;
 }

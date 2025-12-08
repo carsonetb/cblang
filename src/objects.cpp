@@ -11,11 +11,9 @@
 using namespace std::placeholders;
 
 cblang::objects::Object::Object(
-    scanner::Token p_name,
     std::shared_ptr<ClassDefinition> p_type,
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates
-) : name(std::move(p_name)),
-    type(std::move(p_type)), 
+) : type(std::move(p_type)), 
     defined_templates(std::move(p_templates)) 
 {
     for (const auto& template_param : defined_templates) {
@@ -32,27 +30,25 @@ auto cblang::objects::Object::cast_into(std::shared_ptr<Object> obj) -> int {
 }
 
 cblang::objects::FunctionObject::FunctionObject(
-    scanner::Token p_name,
-    std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
-    std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
-    std::vector<std::shared_ptr<parser::Statement>> p_code
-) : Object(std::move(p_name), std::make_shared<definitions::FunctionDefinition>(), {}),
-    templates(std::move(p_templates)),
-    parameters(std::move(p_parameters)),
-    code(std::move(p_code)) 
+    std::shared_ptr<definitions::FunctionMember> p_definition,
+    std::vector<std::shared_ptr<parser::Statement>> p_code,
+    bool p_is_operator
+) : Object(std::make_shared<definitions::FunctionDefinition>(), {}),
+    definition(std::move(p_definition)),
+    code(std::move(p_code)),
+    is_operator(p_is_operator)
 {
 
 }
 
 cblang::objects::FunctionObject::FunctionObject(
-    scanner::Token p_name,
-    std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
-    std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
-    InternalFunction p_internal
-) : Object(std::move(p_name), std::make_shared<definitions::FunctionDefinition>(), {}),
-    templates(std::move(p_templates)),
-    parameters(std::move(p_parameters)),
-    internal(std::move(p_internal))
+    std::shared_ptr<definitions::FunctionMember> p_definition,
+    InternalFunction p_internal,
+    bool p_is_operator
+) : Object(std::make_shared<definitions::FunctionDefinition>(), {}),
+    definition(std::move(p_definition)),
+    internal(std::move(p_internal)),
+    is_operator(p_is_operator)
 {
 
 }
@@ -62,3 +58,9 @@ auto cblang::objects::FunctionObject::call(std::vector<std::shared_ptr<TemplateD
     
 }
 
+cblang::objects::MultipleFunctionObject::MultipleFunctionObject(
+    std::vector<std::shared_ptr<FunctionObject>> p_objects
+) : Object(std::make_shared<definitions::FunctionDefinition>(), {}),
+    objects(std::move(p_objects)) {
+
+}

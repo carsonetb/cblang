@@ -1,6 +1,7 @@
 #pragma once
 
 #include "definitions.hpp"
+#include "program.hpp"
 #include "scanner.hpp"
 
 #include <cstdint>
@@ -40,13 +41,7 @@ namespace cblang {
         std::string message;
     };
 
-    class Program {
-        public:
-            bool valid = false;
-            std::shared_ptr<UserDefinition> main_class;
-    };
-
     CBLANG_EXPORT auto init(bool verbose = false) -> void;
     CBLANG_EXPORT auto enable_verbose_logs() -> void;
-    CBLANG_EXPORT auto cblang_parse_code(const std::string& code) -> Program;
+    CBLANG_EXPORT auto cblang_parse_code(const std::string& code) -> program::Program;
 }
