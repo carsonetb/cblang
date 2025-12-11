@@ -13,6 +13,37 @@ using namespace cblang::definitions;
 
 static const auto CLASS_TYPE = std::make_shared<TemplatedType>(std::make_shared<ClassDefinition>(TEMPLATED_EMPTY("class"), std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<MemberDefinition>>()), std::vector<std::shared_ptr<TemplatedType>>());
 
+auto cblang::definitions::TemplatedType::operator==(const TemplatedType& rhs) const -> bool {
+    if (cls->name.raw != rhs.cls->name.raw) {
+        return false;
+    }
+    if (templates.size() != rhs.templates.size()) {
+        return false;
+    }
+    for (int i = 0; i < templates.size(); i++) {
+        const auto& this_template = templates[i];
+        auto other_template = rhs.templates[i];
+        if (this_template != other_template) {
+            return false;
+        }
+    }
+    return true;
+}
+
+auto cblang::definitions::TemplatedType::operator!=(const TemplatedType& rhs) const -> bool {
+    return !operator==(rhs);
+}
+
+auto cblang::definitions::TemplatedType::stringify() const -> std::string {
+    std::string out;
+    out += cls->name.raw + "<";
+    for (const auto& templated : templates) {
+        out += templated->stringify() + ", ";
+    }
+    out += ">";
+    return out;
+}
+
 cblang::definitions::MemberDefinition::MemberDefinition(
     std::shared_ptr<TemplatedType> type,
     scanner::Token name,

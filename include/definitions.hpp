@@ -10,8 +10,11 @@
 #include <utility>
 #include <vector>
 
-namespace cblang::definitions {
+namespace cblang::objects {
     class Object;
+}
+
+namespace cblang::definitions {
     class ClassDefinition;
     class TemplateDefinition;
     
@@ -32,6 +35,10 @@ namespace cblang::definitions {
 
         std::shared_ptr<ClassDefinition> cls;
         std::vector<std::shared_ptr<TemplatedType>> templates;
+
+        auto operator==(const TemplatedType& rhs) const -> bool;
+        auto operator!=(const TemplatedType& rhs) const -> bool;
+        [[nodiscard]] auto stringify() const -> std::string;
     };
 
     class MemberDefinition {
@@ -69,7 +76,7 @@ namespace cblang::definitions {
             std::optional<std::shared_ptr<ClassDefinition>> returns;
             std::vector<std::shared_ptr<parser::Statement>> code;
 
-            auto validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<ClassDefinition>> args) -> bool;
+            auto validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<TemplatedType>> args) -> bool;
     };
 
     class ClassDefinition : public MemberDefinition {
@@ -156,11 +163,11 @@ namespace cblang::definitions {
             FunctionDefinition();
     };
 
-    class TemplateDefinition  {
+    class TemplateDefinition {
         public:
             TemplateDefinition(scanner::Token p_template_name);
 
             scanner::Token template_name;
-            std::optional<std::shared_ptr<ClassDefinition>> template_used;
+            std::optional<std::shared_ptr<TemplatedType>> template_used;
     };
 }

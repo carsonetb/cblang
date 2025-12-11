@@ -72,9 +72,12 @@ namespace cblang::parser {
     };
 
     struct Literal : Expr {
-        Literal(std::shared_ptr<scanner::Literal> p_literal) : literal(std::move(p_literal)) {}
+        Literal(std::shared_ptr<scanner::Literal> p_literal, scanner::Token p_token) : literal(std::move(p_literal)), token(std::move(p_token)) {
+            token.literal = literal;
+        }
 
         std::shared_ptr<scanner::Literal> literal;
+        scanner::Token token;
     };
 
     struct Unary : Expr {
@@ -141,12 +144,12 @@ namespace cblang::parser {
         Variable(
             std::shared_ptr<Templated> p_type,
             scanner::Token p_name,
-            std::optional<std::shared_ptr<Expr>> p_value
+            std::shared_ptr<Expr> p_value
         ) : type(std::move(p_type)), name(std::move(p_name)), value(std::move(p_value)) {}
 
         std::shared_ptr<Templated> type;
         scanner::Token name;
-        std::optional<std::shared_ptr<Expr>> value;
+        std::shared_ptr<Expr> value;
     };
 
     struct Class : Declaration {

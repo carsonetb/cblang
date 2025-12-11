@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -96,7 +97,7 @@ namespace cblang::scanner {
 
         TokenType type;
         std::string raw;
-        std::shared_ptr<Literal> literal;
+        std::optional<std::shared_ptr<Literal>> literal;
         int line;
         int column = 0;
 

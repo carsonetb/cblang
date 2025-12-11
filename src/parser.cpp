@@ -158,10 +158,8 @@ auto cblang::parser::Parser::class_decl() -> std::shared_ptr<Class> {
 auto cblang::parser::Parser::variable() -> std::shared_ptr<Variable> {
     auto type = templated("variable type");
     auto name = consume(IDENTIFIER, "Expected variable name.");
-    std::optional<std::shared_ptr<Expr>> expr;
-    if (match({EQUAL})) {
-        expr = expression();
-    }
+    consume(EQUAL, "Expected '=' to denote variable definition.");
+    auto expr = expression();
     return std::make_shared<Variable>(type, name, expr);
 }
 
@@ -352,14 +350,17 @@ auto cblang::parser::Parser::unary() -> std::shared_ptr<Expr> {
 
 auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
     if (match({FALSE_KW})) {
-        return std::make_shared<Literal>(create_literal(true));
+        return std::make_shared<Literal>(create_literal(true), previous());
     }
     if (match({TRUE_KW})) {
-        return std::make_shared<Literal>(create_literal(false));
+        return std::make_shared<Literal>(create_literal(false), previous());
     }
 
     if (match({FLOAT, INT, STRING})) {
-        return std::make_shared<Literal>(previous().literal);
+        if (!previous().literal.has_value()) {
+            throw handle_error(previous(), "(please report) reported type is a literal but has no literal value.");
+        }
+        return std::make_shared<Literal>(previous().literal.value(), previous());
     }
 
     if (check(IDENTIFIER)) {
@@ -515,7 +516,7 @@ auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0)
         out += __TABBING + "Type: " + debug_templates(as_var->type, tabs + 1);
         out += __TABBING + "Name: " + as_var->name.raw; out += NEWLINE;
         if (as_var->value) {
-            out += __TABBING + "Value: " + debug_expression(as_var->value.value(), tabs + 1); out += NEWLINE;
+            out += __TABBING + "Value: " + debug_expression(as_var->value, tabs + 1); out += NEWLINE;
         }
         else {
             out += __TABBING + "(no value set)\n";

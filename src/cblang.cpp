@@ -40,7 +40,7 @@ auto cblang::enable_verbose_logs() -> void {
     logger->info("Verbose logs enabled.");
 }
 
-auto cblang::cblang_parse_code(const std::string& code) -> Program {
+auto cblang::cblang_parse_code(const std::string& code) -> std::optional<program::Program> {
     if (!initialized) {
         logger->error("cblang not initialized (call cblang::init)");
         return {};
