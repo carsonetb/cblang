@@ -7,6 +7,10 @@
 #include <utility>
 #include <vector>
 
+namespace cblang::definitions {
+    class TemplatedType;
+}
+
 namespace cblang::parser {
     struct Templated {
         Templated(
@@ -26,7 +30,7 @@ namespace cblang::parser {
     };
 
     struct Expr : Statement {
-
+        std::optional<std::shared_ptr<definitions::TemplatedType>> evaluates_to;
     };
 
     struct SetVar : Statement {

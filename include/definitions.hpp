@@ -1,7 +1,7 @@
 #pragma once
 
-#include "parser.hpp"
 #include "scanner.hpp"
+#include "parser.hpp"
 #include <cstdint>
 #include <optional>
 #include <memory>

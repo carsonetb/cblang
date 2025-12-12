@@ -55,6 +55,11 @@ auto cblang::program::handle_error(const scanner::Token &token, const std::strin
     return {error};
 }
 
+auto cblang::program::handle_error(const std::string &error) -> RuntimeException {
+    logger->error("[unknown line or token] " + error);
+    return {error};
+}
+
 cblang::program::ScopeParser::ScopeParser(
     std::vector<std::shared_ptr<parser::Statement>> p_code, 
     std::vector<std::shared_ptr<program::Scope>> p_scope, 
@@ -168,8 +173,18 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
         for (const auto& inner_expr : as_array_expr->items) {
             array_objects.push_back(expression(inner_expr));
         }
-        return std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(???))
+        // TODO: Add checks to make sure these variables exist.
+        return std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(as_array_expr->evaluates_to.value()->templates[0]->cls));
     }
+    auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
+    if (as_accessible) {
+        return accessible(as_accessible);
+    }
+    throw handle_error("(please repot) Invalid expression type.");
+}
+
+auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Accessible>& var) -> std::shared_ptr<objects::Object> {
+
 }
 
 auto cblang::program::ScopeParser::set_var(const std::shared_ptr<parser::SetVar>& statement) -> void {
@@ -216,4 +231,12 @@ auto cblang::program::ScopeParser::get_variable(const std::string& name) const -
         }
     }
     return {};
+}
+
+auto cblang::program::ScopeParser::binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) const -> std::shared_ptr<objects::Object> {
+
+}
+
+auto cblang::program::ScopeParser::unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object> {
+    
 }

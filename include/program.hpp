@@ -60,4 +60,5 @@ namespace cblang::program {
     auto enable_verbose_logs() -> void;
     auto run_function(std::shared_ptr<definitions::UserDefinition> run_on, std::shared_ptr<definitions::FunctionMember> to_run) -> std::optional<objects::Object>;
     auto handle_error(const scanner::Token& token, const std::string& error) -> RuntimeException;
+    auto handle_error(const std::string &error) -> RuntimeException;
 }
