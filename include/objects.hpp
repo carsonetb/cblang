@@ -43,6 +43,7 @@ namespace cblang::objects {
 
             bool is_null = true;
 
+            auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>>;
             virtual auto cast_from(std::shared_ptr<Object> obj) -> int;
             virtual auto cast_into(std::shared_ptr<Object> obj) -> int;
             [[nodiscard]] auto get_templated() const -> std::shared_ptr<TemplatedType>;

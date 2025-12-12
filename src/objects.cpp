@@ -25,6 +25,17 @@ cblang::objects::Object::Object(
     }
 }
 
+auto cblang::objects::Object::call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>> {
+    if (!members_by_name.contains(function_name)) {
+        throw program::handle_error(call_point, "Object of type " + get_templated()->stringify() + " has no function '" + function_name + "'.");
+    }
+    auto as_callable = std::dynamic_pointer_cast<Callable>(members_by_name[function_name]);
+    if (!as_callable) {
+        throw program::handle_error(call_point, "Attempt to call '" + get_templated()->stringify() + "." + function_name + ", but it's a variable.");
+    }
+    return as_callable->call(call_point, in_templates, passed_params, {this_scope});
+}
+
 auto cblang::objects::Object::cast_from(std::shared_ptr<Object> obj) -> int {
     return 1;
 }

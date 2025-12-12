@@ -245,7 +245,7 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
             return std::make_shared<CreateVar>(TypeName(type, name), expr);
         }
         if (match({LEFT_CURLY})) {
-            return std::make_shared<ScopeExpr>(scope());
+            return std::make_shared<ScopeExpr>(peek(), scope());
         }
         if (match({SCOPE_KW})) {
             return function();
@@ -368,7 +368,7 @@ auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
     }
 
     if (match({LEFT_CURLY})) {
-        return std::make_shared<ScopeExpr>(scope());
+        return std::make_shared<ScopeExpr>(peek(), scope());
     }
 
     if (match({LEFT_PAREN})) {

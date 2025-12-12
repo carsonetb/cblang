@@ -44,6 +44,8 @@ namespace cblang::program {
             bool returnable;
 
             static auto construct_literal(const scanner::Token& token) -> std::shared_ptr<objects::Object>;
+            static auto unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
+            static auto binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
             auto statement(const std::shared_ptr<parser::Statement>& statement) -> std::optional<std::shared_ptr<objects::Object>>;
             auto expression(const std::shared_ptr<parser::Expr>& expr) -> std::shared_ptr<objects::Object>;
             auto accessible(const std::shared_ptr<parser::Accessible>& var) -> std::shared_ptr<objects::Object>;
@@ -52,8 +54,6 @@ namespace cblang::program {
             [[nodiscard]] auto get_class(const std::shared_ptr<parser::Templated>& templated_class) const -> std::shared_ptr<definitions::TemplatedType>;
             [[nodiscard]] auto get_class_definition(const std::string& name) const -> std::optional<std::shared_ptr<definitions::ClassDefinition>>;
             [[nodiscard]] auto get_variable(const std::string& name) const -> std::optional<std::shared_ptr<objects::Variable>>;
-            [[nodiscard]] auto binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) const -> std::shared_ptr<objects::Object>;
-            [[nodiscard]] auto unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
     };
 
     auto init(bool verbose = false) -> void;

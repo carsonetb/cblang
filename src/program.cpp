@@ -68,6 +68,22 @@ cblang::program::ScopeParser::ScopeParser(
 
 }
 
+auto cblang::program::ScopeParser::binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object> {
+    auto out = lhs->call(oper.raw, oper, {}, {rhs});
+    if (!out.has_value()) {
+        throw handle_error(oper, "Operator '" + lhs->get_templated()->stringify() + "." + oper.raw + "' does not return a value.");
+    }
+    return out.value();
+}
+
+auto cblang::program::ScopeParser::unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object> {
+    auto out = rhs->call(oper.raw, oper, {}, {rhs});
+    if (!out.has_value()) {
+        throw handle_error(oper, "Operator function did not return a value.");
+    }
+    return out.value();
+}
+
 auto cblang::program::ScopeParser::construct_literal(const scanner::Token& token) -> std::shared_ptr<objects::Object> {
     if (!token.literal) {
         throw program::handle_error(token, "(please report) token is not a literal but passed to construct_literal.");
@@ -174,7 +190,7 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
             array_objects.push_back(expression(inner_expr));
         }
         // TODO: Add checks to make sure these variables exist.
-        return std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(as_array_expr->evaluates_to.value()->templates[0]->cls));
+        return std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(as_array_expr->evaluates_to.value()->templates[0]));
     }
     auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
     if (as_accessible) {
@@ -231,12 +247,4 @@ auto cblang::program::ScopeParser::get_variable(const std::string& name) const -
         }
     }
     return {};
-}
-
-auto cblang::program::ScopeParser::binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) const -> std::shared_ptr<objects::Object> {
-
-}
-
-auto cblang::program::ScopeParser::unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object> {
-    
 }
