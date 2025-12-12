@@ -188,3 +188,5 @@ cblang::definitions::ArrayDefinition::ArrayDefinition() : ClassDefinition(
 cblang::definitions::FunctionDefinition::FunctionDefinition() : ClassDefinition(TEMPLATED_EMPTY("scope"), {}, {}) {}
 
 cblang::definitions::TemplateDefinition::TemplateDefinition(scanner::Token p_template_name) : template_name(std::move(p_template_name)) {}
+
+cblang::definitions::TemplateDefinition::TemplateDefinition(std::shared_ptr<TemplatedType> p_template_used) : template_used(std::move(p_template_used)) {}

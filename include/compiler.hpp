@@ -34,7 +34,6 @@ namespace cblang::compiler {
 
             std::shared_ptr<parser::ParsedProgram> source;
 
-            auto get_class(const scanner::Token& token, const std::string& name) const -> std::shared_ptr<ClassDefinition>;
 
             auto main() -> std::shared_ptr<UserDefinition>;
             auto process_class(const std::shared_ptr<parser::Class>& input) -> std::shared_ptr<ClassDefinition>;
@@ -42,5 +41,6 @@ namespace cblang::compiler {
             auto class_members(const std::vector<std::shared_ptr<parser::Declaration>>& inputs) -> std::vector<std::shared_ptr<MemberDefinition>>;
             auto class_templates(const std::shared_ptr<parser::Class>& input) -> std::vector<std::shared_ptr<TemplateDefinition>>;
             auto process_templated(const std::shared_ptr<parser::Templated>& input) -> std::shared_ptr<TemplatedType>;
+            [[nodiscard]] auto get_class(const scanner::Token& token, const std::string& name) const -> std::shared_ptr<ClassDefinition>;
     };
 }

@@ -153,7 +153,23 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
         return unary_operator(as_unary->op, expression(as_unary->right));
     }
     auto as_scope_expr = std::dynamic_pointer_cast<parser::ScopeExpr>(expr);
-    
+    if (as_scope_expr) {
+        return std::make_shared<objects::FunctionObject>(
+            as_scope_expr->declare_point, 
+            std::vector<std::shared_ptr<definitions::MemberDefinition>>(), 
+            std::vector<std::shared_ptr<definitions::TemplateDefinition>>(),
+            std::optional<std::shared_ptr<definitions::ClassDefinition>>(),
+            as_scope_expr->statements
+        );
+    }
+    auto as_array_expr = std::dynamic_pointer_cast<parser::ArrayExpr>(expr);
+    if (as_array_expr) {
+        std::vector<std::shared_ptr<objects::Object>> array_objects;
+        for (const auto& inner_expr : as_array_expr->items) {
+            array_objects.push_back(expression(inner_expr));
+        }
+        return std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(???))
+    }
 }
 
 auto cblang::program::ScopeParser::set_var(const std::shared_ptr<parser::SetVar>& statement) -> void {

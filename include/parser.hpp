@@ -88,8 +88,9 @@ namespace cblang::parser {
     };
 
     struct ScopeExpr : Expr {
-        ScopeExpr(std::vector<std::shared_ptr<Statement>> p_statements) : statements(std::move(p_statements)) {}
+        ScopeExpr(scanner::Token p_declare_point, std::vector<std::shared_ptr<Statement>> p_statements) : declare_point(std::move(p_declare_point)), statements(std::move(p_statements)) {}
 
+        scanner::Token declare_point;
         std::vector<std::shared_ptr<Statement>> statements;
     };
 

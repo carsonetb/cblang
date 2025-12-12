@@ -166,8 +166,9 @@ namespace cblang::definitions {
     class TemplateDefinition {
         public:
             TemplateDefinition(scanner::Token p_template_name);
+            TemplateDefinition(std::shared_ptr<TemplatedType> p_template_used);
 
-            scanner::Token template_name;
+            scanner::Token template_name = scanner::Token(scanner::TokenType::IDENTIFIER, "${UNNAMED_TEMPLATE}", -1);
             std::optional<std::shared_ptr<TemplatedType>> template_used;
     };
 }

@@ -5,7 +5,6 @@
 #include "definitions.hpp"
 #include "scanner.hpp"
 
-#include <cassert>
 #include <memory>
 #include <optional>
 #include <string>
@@ -43,54 +42,44 @@ auto cblang::objects::Object::get_templated() const -> std::shared_ptr<definitio
     return std::make_shared<definitions::TemplatedType>(type, templates);
 }
 
-cblang::objects::FunctionObject::FunctionObject(
-    std::shared_ptr<definitions::FunctionMember> p_definition,
-    std::vector<std::shared_ptr<parser::Statement>> p_code,
-    bool p_is_operator
-) : Object(std::make_shared<definitions::FunctionDefinition>(), {}),
-    definition(std::move(p_definition)),
-    code(std::move(p_code)),
-    is_operator(p_is_operator)
+cblang::objects::Callable::Callable(
+    std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+    std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
+    std::vector<std::shared_ptr<MemberDefinition>> p_parameters
+):  Object(std::make_shared<FunctionDefinition>(), {}),
+    templates(std::move(p_templates)),
+    returns(std::move(p_returns)),
+    parameters(std::move(p_parameters)) 
 {
-
+    for (const auto& in_template : p_templates) {
+        templates_by_name[in_template->template_name.raw] = in_template;
+    }
 }
 
-cblang::objects::FunctionObject::FunctionObject(
-    std::shared_ptr<definitions::FunctionMember> p_definition,
-    InternalFunction p_internal,
-    bool p_is_operator
-) : Object(std::make_shared<definitions::FunctionDefinition>(), {}),
-    definition(std::move(p_definition)),
-    internal(std::move(p_internal)),
-    is_operator(p_is_operator)
-{
-
-}
-
-auto cblang::objects::FunctionObject::validate_call(const scanner::Token& call_point, std::vector<std::shared_ptr<definitions::TemplateDefinition>> in_templates, std::vector<std::shared_ptr<Object>> passed_params) -> void {
-    if (in_templates.size() < definition->templates.size()) {
-        throw program::handle_error(call_point, "Function requires " + std::to_string(definition->templates.size()) + " templates but only " + std::to_string(in_templates.size()) + " were provided.");
+auto cblang::objects::Callable::validate_call(const scanner::Token& call_point, std::vector<std::shared_ptr<definitions::TemplateDefinition>> in_templates, std::vector<std::shared_ptr<Object>> passed_params) const -> void {
+    if (in_templates.size() < templates.size()) {
+        throw program::handle_error(call_point, "Function requires " + std::to_string(templates.size()) + " templates but only " + std::to_string(in_templates.size()) + " were provided.");
     }
 
-    if (passed_params.size() < definition->parameters.size()) {
-        throw program::handle_error(call_point, "Function requires " + std::to_string(definition->parameters.size()) + " parameters but only " + std::to_string(passed_params.size()) + " were provided.");
+    if (passed_params.size() < parameters.size()) {
+        throw program::handle_error(call_point, "Function requires " + std::to_string(parameters.size()) + " parameters but only " + std::to_string(passed_params.size()) + " were provided.");
     }
 
     for (int i = 0; i < in_templates.size(); i++) {
         const auto& in_template = in_templates[i];
-        if (i >= definition->templates.size()) {
-            throw program::handle_error(in_template->template_name, "Function requires only " + std::to_string(definition->templates.size()) + " templates.");
+        if (i >= templates.size()) {
+            throw program::handle_error(in_template->template_name, "Function requires only " + std::to_string(templates.size()) + " templates.");
         }
-        auto this_template = definition->templates[i];
+        auto this_template = templates[i];
         in_template->template_name = this_template->template_name;
     }
 
     for (int i = 0; i < passed_params.size(); i++) {
         const auto& param_obj = passed_params[i];
-        if (i >= definition->parameters.size()) {
-            throw program::handle_error(call_point, "Function requires only " + std::to_string(definition->parameters.size()) + " parameters.");
+        if (i >= parameters.size()) {
+            throw program::handle_error(call_point, "Function requires only " + std::to_string(parameters.size()) + " parameters.");
         }
-        auto param_def = definition->parameters[i];
+        auto param_def = parameters[i];
         if (param_obj->get_templated() != param_def->type) {
             throw program::handle_error(call_point, "Passed variable of type " + param_obj->get_templated()->stringify() + " but expected type " + param_def->type->stringify() + " (param name " + param_def->name.raw + ").");
         }
@@ -98,7 +87,47 @@ auto cblang::objects::FunctionObject::validate_call(const scanner::Token& call_p
     }
 }
 
-auto cblang::objects::FunctionObject::call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) -> std::optional<std::shared_ptr<Object>> {
+cblang::objects::FunctionObject::FunctionObject(
+    const std::shared_ptr<definitions::FunctionMember>& p_definition,
+    std::vector<std::shared_ptr<parser::Statement>> p_code,
+    bool p_is_operator
+) : Callable(p_definition->returns, p_definition->templates, p_definition->parameters),
+    declare_point(p_definition->function_name),
+    function_name(p_definition->function_name),
+    code(std::move(p_code)),
+    is_operator(p_is_operator)
+{
+
+}
+
+cblang::objects::FunctionObject::FunctionObject(
+    const std::shared_ptr<definitions::FunctionMember>& p_definition,
+    InternalFunction p_internal,
+    bool p_is_operator
+) : Callable(p_definition->returns, p_definition->templates, p_definition->parameters),
+    declare_point(p_definition->function_name),
+    function_name(p_definition->function_name),
+    internal(std::move(p_internal)),
+    is_operator(p_is_operator)
+{
+
+}
+
+cblang::objects::FunctionObject::FunctionObject(
+    scanner::Token p_declare_point,
+    std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
+    std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
+    std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+    std::optional<std::vector<std::shared_ptr<parser::Statement>>> p_code
+) : Callable(std::move(p_returns), std::move(p_templates), std::move(p_parameters)),
+    declare_point(std::move(p_declare_point)),
+    code(std::move(p_code)),
+    is_operator(false)
+{
+
+}
+
+auto cblang::objects::FunctionObject::call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> {
     auto call_scope = std::make_shared<program::Scope>();
     owner_scope.push_back(call_scope);
 
@@ -112,7 +141,7 @@ auto cblang::objects::FunctionObject::call(const scanner::Token& call_point, con
         return internal.value()(in_templates, passed_params);
     }
     if (code) {
-        program::ScopeParser parser = program::ScopeParser(code.value(), owner_scope, definition->returns.has_value());
+        program::ScopeParser parser = program::ScopeParser(code.value(), owner_scope, returns.has_value());
         return parser.process();
     }
     throw program::handle_error(call_point, "Attempt to call a null function '" + call_point.raw + "'.");

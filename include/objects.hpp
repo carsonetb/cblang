@@ -45,31 +45,55 @@ namespace cblang::objects {
 
             virtual auto cast_from(std::shared_ptr<Object> obj) -> int;
             virtual auto cast_into(std::shared_ptr<Object> obj) -> int;
-            auto get_templated() const -> std::shared_ptr<TemplatedType>;
+            [[nodiscard]] auto get_templated() const -> std::shared_ptr<TemplatedType>;
     };
     
     using InternalFunction = std::function<std::optional<std::shared_ptr<Object>>(std::vector<std::shared_ptr<TemplateDefinition>>, std::vector<std::shared_ptr<Object>>)>;
 
-    class FunctionObject : public Object {
+    class Callable : public Object {
+        public:
+            Callable(
+                std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+                std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
+                std::vector<std::shared_ptr<MemberDefinition>> p_parameters
+            );
+
+            std::optional<std::shared_ptr<ClassDefinition>> returns;
+            std::vector<std::shared_ptr<MemberDefinition>> parameters;
+            std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
+            std::vector<std::shared_ptr<TemplateDefinition>> templates;
+
+            auto validate_call(const scanner::Token& call_point, std::vector<std::shared_ptr<TemplateDefinition>> in_templates, std::vector<std::shared_ptr<Object>> passed_params) const -> void;
+            [[nodiscard]] virtual auto call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> = 0;
+    };
+
+    class FunctionObject : public Callable {
         public:
             FunctionObject(
-                std::shared_ptr<FunctionMember> p_definition,
+                const std::shared_ptr<FunctionMember>& p_definition,
                 std::vector<std::shared_ptr<parser::Statement>> p_code,
                 bool p_is_operator = false
             );
             FunctionObject(
-                std::shared_ptr<FunctionMember> definition,
+                const std::shared_ptr<FunctionMember>& definition,
                 InternalFunction p_internal,
                 bool p_is_operator = false
             );
+            FunctionObject(
+                scanner::Token declare_point,
+                std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
+                std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
+                std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+                std::optional<std::vector<std::shared_ptr<parser::Statement>>> code
+            );
 
-            std::shared_ptr<FunctionMember> definition;
+            scanner::Token declare_point;
+            std::optional<scanner::Token> function_name;
             std::optional<InternalFunction> internal;
             std::optional<std::vector<std::shared_ptr<parser::Statement>>> code;
             bool is_operator;
 
-            auto validate_call(const scanner::Token& call_point, std::vector<std::shared_ptr<TemplateDefinition>> in_templates, std::vector<std::shared_ptr<Object>> passed_params) -> void;
-            auto call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) -> std::optional<std::shared_ptr<Object>>;
+            [[nodiscard]] auto call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> override;
     };
 
     // Represents multiple function objects with the same name,
