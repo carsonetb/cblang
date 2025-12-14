@@ -5,6 +5,7 @@
 #include "scanner.hpp"
 #include <exception>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -16,13 +17,14 @@ namespace cblang::program {
         bool valid = false;
         std::shared_ptr<definitions::UserDefinition> main_class;
 
-        [[nodiscard]] auto get_functions() const -> std::vector<std::shared_ptr<definitions::FunctionMember>>;
+        [[nodiscard]] auto create_object(const std::vector<std::shared_ptr<objects::Object>>& params) const -> std::shared_ptr<objects::Object>;
     };
 
     struct Scope {
         std::unordered_map<std::string, std::shared_ptr<objects::Variable>> defined_variables;
         std::unordered_map<std::string, std::shared_ptr<definitions::TemplateDefinition>> defined_templates;
         std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes;
+        std::shared_ptr<objects::Object> scope_object;
     };
 
     class RuntimeException : std::exception {
@@ -48,7 +50,7 @@ namespace cblang::program {
             static auto binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
             auto statement(const std::shared_ptr<parser::Statement>& statement) -> std::optional<std::shared_ptr<objects::Object>>;
             auto expression(const std::shared_ptr<parser::Expr>& expr) -> std::shared_ptr<objects::Object>;
-            auto accessible(const std::shared_ptr<parser::Accessible>& var) -> std::shared_ptr<objects::Object>;
+            auto accessible(const std::shared_ptr<parser::Accessible>& var, std::optional<std::shared_ptr<objects::Object>> call_on = {}, bool must_evaluate = false) -> std::optional<std::shared_ptr<objects::Object>>;
             auto set_var(const std::shared_ptr<parser::SetVar>& statement) -> void;
             auto create_var(const std::shared_ptr<parser::CreateVar>& statement) -> void;
             [[nodiscard]] auto get_class(const std::shared_ptr<parser::Templated>& templated_class) const -> std::shared_ptr<definitions::TemplatedType>;
@@ -58,7 +60,6 @@ namespace cblang::program {
 
     auto init(bool verbose = false) -> void;
     auto enable_verbose_logs() -> void;
-    auto run_function(std::shared_ptr<definitions::UserDefinition> run_on, std::shared_ptr<definitions::FunctionMember> to_run) -> std::optional<objects::Object>;
     auto handle_error(const scanner::Token& token, const std::string& error) -> RuntimeException;
     auto handle_error(const std::string &error) -> RuntimeException;
 }

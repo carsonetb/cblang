@@ -1,4 +1,8 @@
 #include "cblang.hpp"
+#include "definitions.hpp"
+#include "objects.hpp"
+#include "program.hpp"
+#include "scanner.hpp"
 #include <fstream>
 #include <iostream>
 #include <span>
@@ -23,6 +27,16 @@ auto main(int argc, char *argv[]) -> int {
     buffer << file.rdbuf();
 
     cblang::init(true);
-    cblang::cblang_parse_code(buffer.str());
+    auto out = cblang::cblang_parse_code(buffer.str());
+    if (out) {
+        auto func = out.value()->main_class->get_functions()[0];
+        auto obj = out.value()->create_object({std::make_shared<cblang::objects::IntObject>(5), std::make_shared<cblang::objects::StringObject>("input")});
+        auto ret = obj->call(func->name.raw, cblang::scanner::Token(cblang::scanner::IDENTIFIER, "begin", -1), {}, {});
+        if (ret) {
+            auto as_string = std::dynamic_pointer_cast<cblang::objects::StringObject>(ret.value());
+            std::cout << as_string->value << "\n";
+        }
+    }
+
     return 0;
 }

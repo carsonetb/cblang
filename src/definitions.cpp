@@ -1,6 +1,8 @@
 #include "definitions.hpp"
 #include "compiler.hpp"
+#include "objects.hpp"
 #include "parser.hpp"
+#include "program.hpp"
 #include "scanner.hpp"
 #include "util.hpp"
 
@@ -111,6 +113,21 @@ auto cblang::definitions::ClassDefinition::can_convert_to(std::shared_ptr<ClassD
     return false;
 }
 
+auto cblang::definitions::ClassDefinition::get_functions() const -> std::vector<std::shared_ptr<FunctionMember>> {
+    std::vector<std::shared_ptr<FunctionMember>> out;
+    for (const auto& member : members) {
+        auto as_function = std::dynamic_pointer_cast<FunctionMember>(member);
+        if (as_function) {
+            out.push_back(as_function);
+        }
+    }
+    return out;
+}
+
+auto cblang::definitions::ClassDefinition::create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::shared_ptr<objects::Object> {
+    throw program::handle_error(creation_point, "Class cannot be created directly (via calling a constructor function).");
+}
+
 cblang::definitions::UserDefinition::UserDefinition(
     const std::shared_ptr<parser::Templated>& p_name, 
     const std::vector<std::shared_ptr<MemberDefinition>>& p_params,
@@ -123,6 +140,20 @@ auto cblang::definitions::UserDefinition::is_constructor_valid(std::shared_ptr<C
 
 auto cblang::definitions::UserDefinition::can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool {
     return false;
+}
+
+auto cblang::definitions::UserDefinition::create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& passed_params) -> std::shared_ptr<objects::Object> {
+    // TODO: Validate templates and params.
+    if (passed_params.size() != params.size()) {
+        throw program::handle_error(creation_point, "Passed " + std::to_string(passed_params.size()) + " params but expected " + std::to_string(params.size()) + ".");
+    }
+    std::vector<std::shared_ptr<objects::Variable>> var_params;
+    for (int i = 0; i < passed_params.size(); i++) {
+        auto passed_param = passed_params[i];
+        auto param_def = params[i];
+        var_params.push_back(std::make_shared<objects::Variable>(param_def->name, passed_param));
+    }
+    return std::make_shared<objects::Object>(shared_from_this(), templates, var_params);
 }
 
 cblang::definitions::BoolDefinition::BoolDefinition() : ClassDefinition(TEMPLATED_EMPTY("bool"), {}, {}) {}

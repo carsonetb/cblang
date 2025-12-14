@@ -1,6 +1,7 @@
 #include "scanner.hpp"
 #include "parser.hpp"
 
+#include <charconv>
 #include <memory>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -113,7 +114,13 @@ auto cblang::scanner::Scanner::scan_token() -> void {
                 logger->error("Char identifier must contain a character at line " + std::to_string(line));
             }
             else {
-                add_token(CHARACTER, std::make_shared<CharLiteral>(peek()));
+                // Consume the character and the closing "'"
+                advance();
+                if (peek() != '\'') {
+                    logger->error("Char identifier must close after one character at line " + std::to_string(line));
+                }
+                advance();
+                add_token(CHARACTER, std::make_shared<CharLiteral>(peek(-1)));
             }
             break;
         default: 
@@ -169,7 +176,7 @@ auto cblang::scanner::Scanner::string() -> void {
 
     advance(); // advance passed the closing ".
 
-    std::string value = source.substr(start + 1, current - start - 1);
+    std::string value = source.substr(start + 1, current - start - 2);
     add_token(STRING, std::make_shared<StringLiteral>(value));
 }
 

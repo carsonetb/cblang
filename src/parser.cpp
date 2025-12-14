@@ -356,7 +356,7 @@ auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
         return std::make_shared<Literal>(create_literal(false), previous());
     }
 
-    if (match({FLOAT, INT, STRING})) {
+    if (match({FLOAT, INT, STRING, CHARACTER})) {
         if (!previous().literal.has_value()) {
             throw handle_error(previous(), "(please report) reported type is a literal but has no literal value.");
         }

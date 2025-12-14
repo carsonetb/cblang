@@ -1,13 +1,11 @@
 #pragma once
 
-#include "definitions.hpp"
 #include "program.hpp"
 #include "scanner.hpp"
 
 #include <cstdint>
 #include <memory>
 #include <utility>
-#include <vector>
 
 namespace cblang::definitions {
     class TemplateDefinition;
@@ -43,5 +41,5 @@ namespace cblang {
 
     CBLANG_EXPORT auto init(bool verbose = false) -> void;
     CBLANG_EXPORT auto enable_verbose_logs() -> void;
-    CBLANG_EXPORT auto cblang_parse_code(const std::string& code) -> std::optional<program::Program>;
+    CBLANG_EXPORT auto cblang_parse_code(const std::string& code) -> std::optional<std::shared_ptr<program::Program>>;
 }

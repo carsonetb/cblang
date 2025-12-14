@@ -22,31 +22,30 @@ namespace cblang::objects {
         public:
             Variable(scanner::Token p_name, std::shared_ptr<objects::Object> p_object);
 
-            std::string name;
+            scanner::Token name;
             std::shared_ptr<Object> object;
     };
 
-    class Object {
+    class Object : public std::enable_shared_from_this<Object> {
         public:
-            Object(std::shared_ptr<ClassDefinition> p_type, std::vector<std::shared_ptr<TemplateDefinition>> p_templates);
+            Object(std::shared_ptr<ClassDefinition> p_type, const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates, const std::vector<std::shared_ptr<Variable>>& p_params);
             virtual ~Object();
 
             std::shared_ptr<ClassDefinition> type;
             
             // TODO: Remove members array to make the Obejct type take up less memory.
             // These templates are defined -- an actual ClassDefinition is associated with them.
-            std::vector<std::shared_ptr<TemplateDefinition>> defined_templates;
-            std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> defined_templates_by_name;
-            std::vector<std::shared_ptr<Object>> members;
-            std::unordered_map<std::string, std::shared_ptr<Object>> members_by_name;
-            std::shared_ptr<program::Scope> this_scope;
+            std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> defined_templates;
+            std::unordered_map<std::string, std::shared_ptr<Variable>> members_by_name;
 
-            bool is_null = true;
-
-            auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>>;
+            auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>>;      
+            auto get_var(const scanner::Token& variable_name) const -> std::shared_ptr<Object>;
+            auto get_scope() -> std::shared_ptr<program::Scope>;
             virtual auto cast_from(std::shared_ptr<Object> obj) -> int;
             virtual auto cast_into(std::shared_ptr<Object> obj) -> int;
             [[nodiscard]] auto get_templated() const -> std::shared_ptr<TemplatedType>;
+            [[nodiscard]] auto get_member_array() const -> std::vector<std::shared_ptr<Variable>>;
+            [[nodiscard]] auto get_template_array() const -> std::vector<std::shared_ptr<TemplateDefinition>>;
     };
     
     using InternalFunction = std::function<std::optional<std::shared_ptr<Object>>(std::vector<std::shared_ptr<TemplateDefinition>>, std::vector<std::shared_ptr<Object>>)>;
@@ -65,7 +64,7 @@ namespace cblang::objects {
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
 
             auto validate_call(const scanner::Token& call_point, std::vector<std::shared_ptr<TemplateDefinition>> in_templates, std::vector<std::shared_ptr<Object>> passed_params) const -> void;
-            [[nodiscard]] virtual auto call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> = 0;
+            [[nodiscard]] virtual auto call_this(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> = 0;
     };
 
     class FunctionObject : public Callable {
@@ -94,7 +93,7 @@ namespace cblang::objects {
             std::optional<std::vector<std::shared_ptr<parser::Statement>>> code;
             bool is_operator;
 
-            [[nodiscard]] auto call(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> override;
+            [[nodiscard]] auto call_this(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> override;
     };
 
     // Represents multiple function objects with the same name,

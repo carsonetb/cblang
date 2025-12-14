@@ -17,6 +17,7 @@ namespace cblang::objects {
 namespace cblang::definitions {
     class ClassDefinition;
     class TemplateDefinition;
+    class FunctionDefinition;
     
     enum class LiteralType : uint8_t {
         BOOL,
@@ -76,6 +77,8 @@ namespace cblang::definitions {
             std::optional<std::shared_ptr<ClassDefinition>> returns;
             std::vector<std::shared_ptr<parser::Statement>> code;
 
+            bool is_operator = false;
+
             auto validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<TemplatedType>> args) -> bool;
     };
 
@@ -97,11 +100,13 @@ namespace cblang::definitions {
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
 
+            virtual auto create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::shared_ptr<objects::Object>;
             virtual auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool;
             virtual auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool;
+            [[nodiscard]] auto get_functions() const -> std::vector<std::shared_ptr<FunctionMember>>;
     };
 
-    class UserDefinition : public ClassDefinition {
+    class UserDefinition : public ClassDefinition, public std::enable_shared_from_this<UserDefinition> {
         public:
             UserDefinition(
                 const std::shared_ptr<parser::Templated>& name, 
@@ -111,6 +116,7 @@ namespace cblang::definitions {
 
             auto is_constructor_valid(std::shared_ptr<ClassDefinition> def) -> bool override;
             auto can_convert_to(std::shared_ptr<ClassDefinition> def) -> bool override;
+            auto create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::shared_ptr<objects::Object> override;
     };
 
     class BoolDefinition : public ClassDefinition {

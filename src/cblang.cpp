@@ -2,6 +2,7 @@
 
 #include "compiler.hpp"
 #include "parser.hpp"
+#include "program.hpp"
 #include "scanner.hpp"
 
 #include <memory>
@@ -40,7 +41,7 @@ auto cblang::enable_verbose_logs() -> void {
     logger->info("Verbose logs enabled.");
 }
 
-auto cblang::cblang_parse_code(const std::string& code) -> std::optional<program::Program> {
+auto cblang::cblang_parse_code(const std::string& code) -> std::optional<std::shared_ptr<program::Program>> {
     if (!initialized) {
         logger->error("cblang not initialized (call cblang::init)");
         return {};
@@ -69,5 +70,5 @@ auto cblang::cblang_parse_code(const std::string& code) -> std::optional<program
     // }
 
     // return compiler_out;
-    return {};
+    return compiled_program;
 }

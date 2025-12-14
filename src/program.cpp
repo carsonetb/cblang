@@ -2,7 +2,9 @@
 #include "definitions.hpp"
 #include "objects.hpp"
 #include "parser.hpp"
+#include "scanner.hpp"
 #include <memory>
+#include <optional>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <vector>
@@ -11,12 +13,12 @@ using namespace cblang;
 using namespace cblang::program;
 
 static bool initialized = false;
-static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_mt("cblang::compiler");
+static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_mt("cblang::program");
 
 cblang::program::Program::Program(std::shared_ptr<definitions::UserDefinition> p_main_class) : main_class(std::move(p_main_class)) {}
 
-auto cblang::program::Program::get_functions() const -> std::vector<std::shared_ptr<definitions::FunctionMember>> {
-    return {};
+auto cblang::program::Program::create_object(const std::vector<std::shared_ptr<objects::Object>>& params) const -> std::shared_ptr<objects::Object> {
+    return main_class->create_object(scanner::Token(scanner::IDENTIFIER, "PROGRAM ENTRY POINT", -1), {}, params);
 }
 
 auto cblang::program::init(bool verbose) -> void {
@@ -36,19 +38,6 @@ auto cblang::program::enable_verbose_logs() -> void {
     logger->set_level(spdlog::level::debug);
     logger->info("Verbose logs enabled.");
 }
-
-auto cblang::program::run_function(std::shared_ptr<definitions::UserDefinition> run_on, std::shared_ptr<definitions::FunctionMember> to_run) -> std::optional<objects::Object> {
-    try {
-        // TODO: Run the function.
-    }
-    catch (RuntimeException exception) {
-        logger->error("Program exited early because of an error.");
-    }
-
-    logger->info("Program finished successfully.");
-
-    return {};
-} 
 
 auto cblang::program::handle_error(const scanner::Token &token, const std::string &error) -> RuntimeException {
     logger->error("[line " + std::to_string(token.line) + "] [token " + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "] " + error);
@@ -194,13 +183,44 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
     }
     auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
     if (as_accessible) {
-        return accessible(as_accessible);
+        auto out = accessible(as_accessible, {}, true);
+        if (!out.value()) {
+            throw handle_error("(please report) Accessible with must evaluate enabled returned a null object without throwing an error.");
+        }
+        return out.value();
     }
     throw handle_error("(please repot) Invalid expression type.");
 }
 
-auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Accessible>& var) -> std::shared_ptr<objects::Object> {
+auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Accessible>& var, std::optional<std::shared_ptr<objects::Object>> call_on, bool must_evaluate) -> std::optional<std::shared_ptr<objects::Object>> {
+    if (!call_on.has_value()) {
+        call_on = scope.back()->scope_object;
+    }
+    
+    auto as_call_expr = std::dynamic_pointer_cast<parser::CallExpr>(var);
+    if (as_call_expr) {
+        std::vector<std::shared_ptr<objects::Object>> arguments;
+        for (const auto& argument_expr : as_call_expr->args) {
+            arguments.push_back(expression(argument_expr));
+        }
+        std::vector<std::shared_ptr<definitions::TemplateDefinition>> templates;
+        for (const auto& template_def : as_call_expr->name->templates) {
+            templates.push_back(std::make_shared<definitions::TemplateDefinition>(get_class(template_def)));
+        }
+        scanner::Token name_token = as_call_expr->name->name;
+        auto out = call_on.value()->call(name_token.raw, name_token, templates, arguments);
+        if (!out.value() && must_evaluate) {
+            throw handle_error(name_token, "Function must return a value.");
+        }
+        return out;
+    }
 
+    auto as_var_expr = std::dynamic_pointer_cast<parser::VarExpr>(var);
+    if (as_var_expr) {
+        return call_on.value()->get_var(as_var_expr->name);
+    }
+
+    throw handle_error("(please report) Invalid Accessible type (or base class).");
 }
 
 auto cblang::program::ScopeParser::set_var(const std::shared_ptr<parser::SetVar>& statement) -> void {
