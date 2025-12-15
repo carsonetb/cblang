@@ -146,3 +146,48 @@ auto cblang::compiler::Compiler::process_templated(const std::shared_ptr<parser:
     }
     return std::make_shared<TemplatedType>(cls, templates);
 }
+
+auto cblang::compiler::StaticAnalyzer::perform_analysis() -> int {
+    return 0;
+}
+
+auto cblang::compiler::StaticAnalyzer::analyze_class(const std::shared_ptr<UserDefinition>& definition) -> void {
+
+}
+
+auto cblang::compiler::StaticAnalyzer::function(const std::shared_ptr<FunctionMember>& func) -> void {
+
+}
+
+auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::Statement>& stmnt) -> void {
+
+}
+
+auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::Expr>& expr) -> void {
+
+}
+
+auto cblang::compiler::StaticAnalyzer::assert_function_exists(const scanner::Token& name) const -> std::shared_ptr<FunctionMember> {
+    auto as_function = std::dynamic_pointer_cast<FunctionMember>(assert_var_exists(name));
+    if (!as_function) {
+        throw handle_error(name, "(during static analysis) Expected '" + name.raw + "' to be a function but found a variable.");
+    }
+    return as_function;
+}
+
+auto cblang::compiler::StaticAnalyzer::assert_var_exists(const scanner::Token& name) const -> std::shared_ptr<MemberDefinition> {
+    for (unsigned long i = current_function_scopes.size() - 1; i >= 0; i--) {
+        const auto& scope = current_function_scopes[i];
+        if (!scope.defined_variables.contains(name.raw)) {
+            continue;
+        }
+        return scope.defined_variables.at(name.raw);
+    }
+    if (current_class.defined_variables.contains(name.raw)) {
+        return current_class.defined_variables.at(name.raw);
+    }
+    if (main_scope.defined_variables.contains(name.raw)) {
+        return main_scope.defined_variables.at(name.raw);
+    }
+    throw handle_error(name, "(during static analysis) Variable " + name.raw + " not found in the current scope.");
+}

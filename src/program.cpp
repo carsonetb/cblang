@@ -232,7 +232,7 @@ auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Acce
             templates.push_back(std::make_shared<definitions::TemplateDefinition>(get_class(template_def)));
         }
         scanner::Token name_token = as_call_expr->name->name;
-        auto out = call_on.value()->call(name_token.raw, name_token, templates, arguments);
+        auto out = call_on.value()->call(name_token.raw, name_token, templates, arguments); // TODO: Function call stack.
         if (!out.value() && must_evaluate) {
             throw handle_error(name_token, "Function must return a value.");
         }
