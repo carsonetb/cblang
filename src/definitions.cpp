@@ -25,7 +25,7 @@ auto cblang::definitions::TemplatedType::operator==(const TemplatedType& rhs) co
     for (int i = 0; i < templates.size(); i++) {
         const auto& this_template = templates[i];
         auto other_template = rhs.templates[i];
-        if (this_template != other_template) {
+        if (*this_template != *other_template) {
             return false;
         }
     }
@@ -37,6 +37,9 @@ auto cblang::definitions::TemplatedType::operator!=(const TemplatedType& rhs) co
 }
 
 auto cblang::definitions::TemplatedType::stringify() const -> std::string {
+    if (templates.empty()) {
+        return cls->name.raw;
+    }
     std::string out;
     out += cls->name.raw + "<";
     for (const auto& templated : templates) {
@@ -165,7 +168,6 @@ auto cblang::definitions::UserDefinition::can_convert_to(std::shared_ptr<ClassDe
 }
 
 auto cblang::definitions::UserDefinition::create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& passed_params) -> std::shared_ptr<objects::Object> {
-    // TODO: Validate templates and params.
     if (passed_params.size() != params.size()) {
         throw program::handle_error(creation_point, "Passed " + std::to_string(passed_params.size()) + " params but expected " + std::to_string(params.size()) + ".");
     }
@@ -173,6 +175,9 @@ auto cblang::definitions::UserDefinition::create_object(const scanner::Token& cr
     for (int i = 0; i < passed_params.size(); i++) {
         auto passed_param = passed_params[i];
         auto param_def = params[i];
+        if (*passed_param->get_templated() != *param_def->type) {
+            throw program::handle_error(creation_point, "For argument " + std::to_string(i) + ": Passed param of type " + passed_param->get_templated()->stringify() + " but expected " + param_def->type->stringify() + ".");
+        }
         var_params.push_back(std::make_shared<objects::Variable>(param_def->name, passed_param, false, false, false));
     }
     auto out = std::make_shared<objects::Object>(shared_from_this(), templates, var_params);

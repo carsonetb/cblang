@@ -20,10 +20,14 @@ namespace cblang::objects {
 
     class Variable {
         public:
-            Variable(scanner::Token p_name, std::shared_ptr<objects::Object> p_object);
+            Variable(scanner::Token p_name, std::shared_ptr<objects::Object> p_object, bool p_is_private, bool p_is_static, bool p_is_const);
 
             scanner::Token name;
             std::shared_ptr<Object> object;
+
+            bool is_private;
+            bool is_static;
+            bool is_const;
     };
 
     class Object : public std::enable_shared_from_this<Object> {
@@ -33,11 +37,11 @@ namespace cblang::objects {
 
             std::shared_ptr<ClassDefinition> type;
             
-            // TODO: Remove members array to make the Obejct type take up less memory.
             // These templates are defined -- an actual ClassDefinition is associated with them.
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> defined_templates;
             std::unordered_map<std::string, std::shared_ptr<Variable>> members_by_name;
 
+            auto initialize() -> void;
             auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>>;      
             auto get_var(const scanner::Token& variable_name) const -> std::shared_ptr<Object>;
             auto get_scope() -> std::shared_ptr<program::Scope>;
@@ -72,26 +76,40 @@ namespace cblang::objects {
             FunctionObject(
                 const std::shared_ptr<FunctionMember>& p_definition,
                 std::vector<std::shared_ptr<parser::Statement>> p_code,
-                bool p_is_operator = false
+                bool p_is_cast = false,
+                bool p_is_operator = false,
+                bool p_is_const = false,
+                bool p_is_static = false
             );
             FunctionObject(
                 const std::shared_ptr<FunctionMember>& definition,
                 InternalFunction p_internal,
-                bool p_is_operator = false
+                bool p_is_cast = false,
+                bool p_is_operator = false,
+                bool p_is_const = false,
+                bool p_is_static = false
             );
             FunctionObject(
                 scanner::Token declare_point,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
                 std::optional<std::shared_ptr<ClassDefinition>> p_returns,
-                std::optional<std::vector<std::shared_ptr<parser::Statement>>> code
+                std::optional<std::vector<std::shared_ptr<parser::Statement>>> code,
+                bool p_is_cast = false,
+                bool p_is_operator = false,
+                bool p_is_const = false,
+                bool p_is_static = false
             );
 
             scanner::Token declare_point;
             std::optional<scanner::Token> function_name;
             std::optional<InternalFunction> internal;
             std::optional<std::vector<std::shared_ptr<parser::Statement>>> code;
+
+            bool is_cast;
             bool is_operator;
+            bool is_const;
+            bool is_static;
 
             [[nodiscard]] auto call_this(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> override;
     };

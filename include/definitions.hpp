@@ -47,7 +47,10 @@ namespace cblang::definitions {
             MemberDefinition(
                 std::shared_ptr<TemplatedType> type,
                 scanner::Token name,
-                std::optional<std::shared_ptr<parser::Expr>> initializer
+                std::optional<std::shared_ptr<parser::Expr>> initializer,
+                bool p_is_static,
+                bool p_is_private,
+                bool p_is_const
             );
             virtual ~MemberDefinition();
 
@@ -55,9 +58,9 @@ namespace cblang::definitions {
             std::shared_ptr<TemplatedType> type;
             std::optional<std::shared_ptr<parser::Expr>> initializer;
 
-            bool is_static = false;
-            bool is_private = false;
-            bool is_const = false;
+            bool is_static;
+            bool is_private;
+            bool is_const;
     };
 
     class FunctionMember : public MemberDefinition {
@@ -66,7 +69,12 @@ namespace cblang::definitions {
                 const std::shared_ptr<parser::Templated>& p_name,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
                 std::optional<std::shared_ptr<ClassDefinition>> p_returns,
-                std::vector<std::shared_ptr<parser::Statement>> p_code
+                std::vector<std::shared_ptr<parser::Statement>> p_code,
+                bool p_is_static,
+                bool p_is_private,
+                bool p_is_const,
+                bool p_is_operator,
+                bool p_is_cast
             );
 
             scanner::Token function_name;
@@ -77,7 +85,8 @@ namespace cblang::definitions {
             std::optional<std::shared_ptr<ClassDefinition>> returns;
             std::vector<std::shared_ptr<parser::Statement>> code;
 
-            bool is_operator = false;
+            bool is_operator;
+            bool is_cast;
 
             auto validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<TemplatedType>> args) -> bool;
     };

@@ -2,6 +2,7 @@
 
 #include "definitions.hpp"
 #include "objects.hpp"
+#include "parser.hpp"
 #include "scanner.hpp"
 #include <exception>
 #include <memory>
@@ -17,7 +18,7 @@ namespace cblang::program {
         bool valid = false;
         std::shared_ptr<definitions::UserDefinition> main_class;
 
-        [[nodiscard]] auto create_object(const std::vector<std::shared_ptr<objects::Object>>& params) const -> std::shared_ptr<objects::Object>;
+        [[nodiscard]] auto create_object(const std::vector<std::shared_ptr<objects::Object>>& params) const -> std::optional<std::shared_ptr<objects::Object>>;
     };
 
     struct Scope {
@@ -37,11 +38,14 @@ namespace cblang::program {
     class ScopeParser {
         public:
             ScopeParser(std::vector<std::shared_ptr<parser::Statement>> p_code, std::vector<std::shared_ptr<program::Scope>> p_scope, bool p_returnable = true);
+            ScopeParser(std::shared_ptr<parser::Expr> p_expr, std::vector<std::shared_ptr<program::Scope>> p_scope);
 
             auto process() -> std::optional<std::shared_ptr<objects::Object>>;
+            auto process_expr() -> std::shared_ptr<objects::Object>;
 
         private:
-            std::vector<std::shared_ptr<parser::Statement>> code;
+            std::optional<std::vector<std::shared_ptr<parser::Statement>>> code;
+            std::optional<std::shared_ptr<parser::Expr>> parse_expr;
             std::vector<std::shared_ptr<program::Scope>> scope;
             bool returnable;
 

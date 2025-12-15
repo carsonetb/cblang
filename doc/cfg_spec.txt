@@ -11,9 +11,18 @@ declaration:
     | functionDecl
     | classDecl
 
-varDecl: IDENTIFIER templates? IDENTIFIER ( "=" expression )?
+varDecl: memberFlags? IDENTIFIER templates? IDENTIFIER ( "=" expression )?
 
-functionDecl: "scope" IDENTIFIER template_definition? ( "(" parameters? ")" )? ( "->" IDENTIFIER )? "=" "{" scope? "}"
+functionDecl: functionFlags? "scope" IDENTIFIER template_definition? ( "(" parameters? ")" )? ( "->" IDENTIFIER )? "=" "{" scope? "}"
+functionFlags: 
+    | memberFlags
+    | "cast"
+    | "operator"
+
+memberFlags: 
+    | "private"? "static" 
+    | "private"? "const" 
+    | "private"
 
 classDecl: "class" IDENTIFIER ( ":" IDENTIFIER ( "," IDENTIFIERS )* ) ( "(" parameters? ")" )? "=" "(" members? ")"
 
@@ -21,7 +30,7 @@ scope: statement ( statement )*
 
 statement:
     ( expression 
-    | IDENTIFIER = expression
+    | function_or_variable = expression
     | IDENTIFIER templates? IDENTIFIER = expression
     | functionDecl 
     | "{" scope? "}"

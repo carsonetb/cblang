@@ -21,6 +21,7 @@ auto cblang::init(bool verbose) -> void {
     cblang::scanner::init(verbose);
     cblang::compiler::init(verbose);
     cblang::parser::init(verbose);
+    cblang::program::init(verbose);
 
     initialized = true;
 

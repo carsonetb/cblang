@@ -1,11 +1,10 @@
-// Certainly this is not valid code.
 class Main (int alpha, string beta) = (
-    int x = 0,
+    const int x = 0,
     scope func -> string = {
         return beta;
     },
     class Sub<T, U> (int alpha2, char beta2) = (
 
-    ),
-    Sub v = Sub(1, 'd')
+    )//,
+    // Sub v = Sub(1, 'd')
 ) 

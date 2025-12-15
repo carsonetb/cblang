@@ -115,7 +115,10 @@ namespace cblang::parser {
             std::optional<std::shared_ptr<Accessible>> p_access, 
             std::shared_ptr<Templated> p_name, 
             std::vector<std::shared_ptr<Expr>> p_args
-        ) : Accessible(std::move(p_access)), name(std::move(p_name)), args(std::move(p_args)) {}
+        ) : Accessible(std::move(p_access)), 
+            name(std::move(p_name)), 
+            args(std::move(p_args))
+        {}
 
         std::shared_ptr<Templated> name;
         std::vector<std::shared_ptr<Expr>> args;
@@ -136,25 +139,53 @@ namespace cblang::parser {
             std::shared_ptr<Templated> p_name, 
             Parameters p_params, 
             std::optional<scanner::Token> p_returns,
-            std::vector<std::shared_ptr<Statement>> p_body
-        ) : templated_name(std::move(p_name)), params(std::move(p_params)), returns(std::move(p_returns)), body(std::move(p_body)) {}
+            std::vector<std::shared_ptr<Statement>> p_body,
+            bool p_is_cast,
+            bool p_is_operator,
+            bool p_is_private,
+            bool p_is_static,
+            bool p_is_const
+        ) : templated_name(std::move(p_name)), params(std::move(p_params)), returns(std::move(p_returns)), body(std::move(p_body)),
+            is_cast(p_is_cast),
+            is_operator(p_is_operator),
+            is_private(p_is_private),
+            is_static(p_is_static),
+            is_const(p_is_const) 
+        {}
 
         std::shared_ptr<Templated> templated_name;
         Parameters params;
         std::optional<scanner::Token> returns;
         std::vector<std::shared_ptr<Statement>> body;
+
+        bool is_cast;
+        bool is_operator;
+        bool is_private;
+        bool is_static;
+        bool is_const;
     };
 
     struct Variable : Declaration {
         Variable(
             std::shared_ptr<Templated> p_type,
             scanner::Token p_name,
-            std::shared_ptr<Expr> p_value
-        ) : type(std::move(p_type)), name(std::move(p_name)), value(std::move(p_value)) {}
+            std::shared_ptr<Expr> p_value,
+            bool p_is_private,
+            bool p_is_static,
+            bool p_is_const
+        ) : type(std::move(p_type)), name(std::move(p_name)), value(std::move(p_value)),
+            is_private(p_is_private),
+            is_static(p_is_static),
+            is_const(p_is_const) 
+        {}
 
         std::shared_ptr<Templated> type;
         scanner::Token name;
         std::shared_ptr<Expr> value;
+
+        bool is_private;
+        bool is_static;
+        bool is_const;
     };
 
     struct Class : Declaration {

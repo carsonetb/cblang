@@ -18,8 +18,14 @@ static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_st("cblang:
 
 cblang::program::Program::Program(std::shared_ptr<definitions::UserDefinition> p_main_class) : main_class(std::move(p_main_class)) {}
 
-auto cblang::program::Program::create_object(const std::vector<std::shared_ptr<objects::Object>>& params) const -> std::shared_ptr<objects::Object> {
-    return main_class->create_object(scanner::Token(scanner::IDENTIFIER, "PROGRAM ENTRY POINT", -1), {}, params);
+auto cblang::program::Program::create_object(const std::vector<std::shared_ptr<objects::Object>>& params) const -> std::optional<std::shared_ptr<objects::Object>> {
+    try {
+        return main_class->create_object(scanner::Token(scanner::IDENTIFIER, "PROGRAM ENTRY POINT", -1), {}, params);
+    }
+    catch (RuntimeException exception) {
+        logger->error("Error encountered during execution!");
+        return {};
+    }
 }
 
 auto cblang::program::init(bool verbose) -> void {
