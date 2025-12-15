@@ -14,7 +14,20 @@
 using namespace cblang;
 using namespace cblang::objects;
 
-cblang::objects::Variable::Variable(scanner::Token p_name, std::shared_ptr<objects::Object> p_object) : name(std::move(p_name)), object(std::move(p_object)) {}
+cblang::objects::Variable::Variable(
+    scanner::Token p_name, 
+    std::shared_ptr<objects::Object> p_object, 
+    bool p_is_private, 
+    bool p_is_static,
+    bool p_is_const
+) : name(std::move(p_name)), 
+    object(std::move(p_object)),
+    is_private(p_is_private),
+    is_static(p_is_static),
+    is_const(p_is_const)
+{
+
+}
 
 cblang::objects::Object::Object(
     std::shared_ptr<ClassDefinition> p_type,
@@ -28,23 +41,50 @@ cblang::objects::Object::Object(
     for (const auto& param : p_params) {
         members_by_name[param->name.raw] = param;
     }
-    for (const auto& member : type->members_by_name) {
-        auto as_function = std::dynamic_pointer_cast<FunctionMember>(member.second);
-        if (!as_function) {
-            continue;
-        }
-        members_by_name[as_function->function_name.raw] = std::make_shared<Variable>(
-            as_function->function_name, 
-            std::make_shared<FunctionObject>(
-                as_function, 
-                as_function->code, 
-                as_function->is_operator
-            )
-        );
-    }
 }
 
 cblang::objects::Object::~Object() = default;
+
+auto cblang::objects::Object::initialize() -> void {
+    for (const auto& member : type->members_by_name) {
+        auto member_def = member.second;
+        if (std::dynamic_pointer_cast<ClassDefinition>(member_def)) {
+            continue;
+        }
+        auto as_function = std::dynamic_pointer_cast<FunctionMember>(member_def);
+        if (as_function) {
+            members_by_name[as_function->function_name.raw] = std::make_shared<Variable>(
+                as_function->function_name, 
+                std::make_shared<FunctionObject>(
+                    as_function, 
+                    as_function->code,
+                    as_function->is_cast,
+                    as_function->is_operator,
+                    as_function->is_const,
+                    as_function->is_static
+                ),
+                as_function->is_private,
+                as_function->is_static,
+                true // functions can't be modified ... 
+            );
+            continue;
+        }
+        if (member_def->is_static) { // TODO: Static variables should be initialize correctly
+            continue;
+        }
+        if (!member_def->initializer) {
+            throw program::handle_error(member_def->name, "Member requires an initializer.");
+        }
+        program::ScopeParser parser = program::ScopeParser(member_def->initializer.value(), {get_scope()}); // TODO: Slow
+        members_by_name[member_def->name.raw] = std::make_shared<Variable>(
+            member_def->name, 
+            parser.process_expr(), 
+            member_def->is_private, 
+            member_def->is_static, 
+            member_def->is_const
+        );
+    }
+}
 
 auto cblang::objects::Object::call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>> {
     if (!members_by_name.contains(function_name)) {
@@ -149,19 +189,25 @@ auto cblang::objects::Callable::validate_call(const scanner::Token& call_point, 
         if (param_obj->get_templated() != param_def->type) {
             throw program::handle_error(call_point, "Passed variable of type " + param_obj->get_templated()->stringify() + " but expected type " + param_def->type->stringify() + " (param name " + param_def->name.raw + ").");
         }
-        auto this_variable = std::make_shared<Variable>(param_def->name, param_obj);
+        auto this_variable = std::make_shared<Variable>(param_def->name, param_obj, false, false, false);
     }
 }
 
 cblang::objects::FunctionObject::FunctionObject(
     const std::shared_ptr<definitions::FunctionMember>& p_definition,
     std::vector<std::shared_ptr<parser::Statement>> p_code,
-    bool p_is_operator
+    bool p_is_cast,
+    bool p_is_operator,
+    bool p_is_const,
+    bool p_is_static
 ) : Callable(p_definition->returns, p_definition->templates, p_definition->parameters),
     declare_point(p_definition->function_name),
     function_name(p_definition->function_name),
     code(std::move(p_code)),
-    is_operator(p_is_operator)
+    is_cast(p_is_cast),
+    is_operator(p_is_operator),
+    is_const(p_is_const),
+    is_static(p_is_static)
 {
 
 }
@@ -169,12 +215,18 @@ cblang::objects::FunctionObject::FunctionObject(
 cblang::objects::FunctionObject::FunctionObject(
     const std::shared_ptr<definitions::FunctionMember>& p_definition,
     InternalFunction p_internal,
-    bool p_is_operator
+    bool p_is_cast,
+    bool p_is_operator,
+    bool p_is_const,
+    bool p_is_static
 ) : Callable(p_definition->returns, p_definition->templates, p_definition->parameters),
     declare_point(p_definition->function_name),
     function_name(p_definition->function_name),
     internal(std::move(p_internal)),
-    is_operator(p_is_operator)
+    is_cast(p_is_cast),
+    is_operator(p_is_operator),
+    is_const(p_is_const),
+    is_static(p_is_static)
 {
 
 }
@@ -184,11 +236,18 @@ cblang::objects::FunctionObject::FunctionObject(
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
     std::optional<std::shared_ptr<ClassDefinition>> p_returns,
-    std::optional<std::vector<std::shared_ptr<parser::Statement>>> p_code
+    std::optional<std::vector<std::shared_ptr<parser::Statement>>> p_code,
+    bool p_is_cast,
+    bool p_is_operator,
+    bool p_is_const,
+    bool p_is_static
 ) : Callable(std::move(p_returns), std::move(p_templates), std::move(p_parameters)),
     declare_point(std::move(p_declare_point)),
     code(std::move(p_code)),
-    is_operator(false)
+    is_cast(p_is_cast),
+    is_operator(p_is_operator),
+    is_const(p_is_const),
+    is_static(p_is_static)
 {
 
 }

@@ -126,7 +126,26 @@ auto cblang::parser::Parser::templated(const std::string& scope, const bool& def
 }
 
 auto cblang::parser::Parser::function() -> std::shared_ptr<Function> {
-    auto name = templated("'scope' keyword'", true);
+    bool is_cast = false;
+    bool is_operator = false;
+    bool is_private = false;
+    bool is_static = false;
+    bool is_const = false;
+
+    // Kinda silly
+    if (match({CAST_KW})) { is_cast = true; }
+    if (match({OPERATOR_KW})) { is_operator = true; }
+    if (!is_cast && !is_operator) {
+        if (match({PRIVATE_KW})) { is_private = true; }
+        if (match({STATIC_KW})) { is_static = true; }
+        if (match({PRIVATE_KW}) && !is_private) { is_private = true; }
+        if (match({CONST_KW}) && !is_static) { is_const = true; }
+        if (match({PRIVATE_KW}) && !is_private) { is_private = true; }
+    } 
+
+    consume(SCOPE_KW, "Expected 'scope' keyword.");
+
+    auto name = templated("'scope' keyword", true);
     auto params = parameters();
     std::optional<Token> returns;
     if (match({RETURN})) {
@@ -135,7 +154,7 @@ auto cblang::parser::Parser::function() -> std::shared_ptr<Function> {
     consume(EQUAL, "Expected '=' between function declaration and code.");
     consume(LEFT_CURLY, "Expected '{' after '='");
     auto body = scope();
-    return std::make_shared<Function>(name, params, returns, body);
+    return std::make_shared<Function>(name, params, returns, body, is_cast, is_operator, is_private, is_static, is_const);
 }
 
 auto cblang::parser::Parser::class_decl() -> std::shared_ptr<Class> {
@@ -156,11 +175,20 @@ auto cblang::parser::Parser::class_decl() -> std::shared_ptr<Class> {
 }
 
 auto cblang::parser::Parser::variable() -> std::shared_ptr<Variable> {
+    bool is_private = false;
+    bool is_static = false;
+    bool is_const = false;
+    if (match({PRIVATE_KW})) { is_private = true; }
+    if (match({STATIC_KW})) { is_static = true; }
+    if (match({PRIVATE_KW}) && !is_private) { is_private = true; }
+    if (match({CONST_KW}) && !is_static) { is_const = true; }
+    if (match({PRIVATE_KW}) && !is_private) { is_private = true; }
+
     auto type = templated("variable type");
     auto name = consume(IDENTIFIER, "Expected variable name.");
     consume(EQUAL, "Expected '=' to denote variable definition.");
     auto expr = expression();
-    return std::make_shared<Variable>(type, name, expr);
+    return std::make_shared<Variable>(type, name, expr, is_private, is_static, is_const);
 }
 
 auto cblang::parser::Parser::parameters(bool optional) -> Parameters {
@@ -190,11 +218,15 @@ auto cblang::parser::Parser::members() -> std::vector<std::shared_ptr<Declaratio
         return {};
     }
     while (true) {
+        bool scope_ahead = check(SCOPE_KW, 1) || check(SCOPE_KW, 2) || check(SCOPE_KW, 3);
         std::shared_ptr<Declaration> decl;
-        if (check(IDENTIFIER)) {
+        if (!scope_ahead && (check(IDENTIFIER) || check(PRIVATE_KW) || check(STATIC_KW) || check(CONST_KW))) {
             decl = variable();
         }
-        else if (match({SCOPE_KW})) {
+        else if (scope_ahead && (check(SCOPE_KW) || check(PRIVATE_KW) ||
+                                 check(STATIC_KW) || check(CONST_KW) ||
+                                 check(CAST_KW) || check(OPERATOR_KW))) 
+        {
             decl = function();
         }
         else if (match({CLASS_KW})) {
@@ -247,7 +279,7 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
         if (match({LEFT_CURLY})) {
             return std::make_shared<ScopeExpr>(peek(), scope());
         }
-        if (match({SCOPE_KW})) {
+        if (check(SCOPE_KW)) {
             return function();
         }
         if (match({RETURN_KW})) {

@@ -7,13 +7,14 @@
 #include <optional>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <stdexcept>
 #include <vector>
 
 using namespace cblang;
 using namespace cblang::program;
 
 static bool initialized = false;
-static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_mt("cblang::program");
+static std::shared_ptr<spdlog::logger> logger = spdlog::stderr_color_st("cblang::program");
 
 cblang::program::Program::Program(std::shared_ptr<definitions::UserDefinition> p_main_class) : main_class(std::move(p_main_class)) {}
 
@@ -57,6 +58,13 @@ cblang::program::ScopeParser::ScopeParser(
 
 }
 
+cblang::program::ScopeParser::ScopeParser(
+    std::shared_ptr<parser::Expr> p_expr, 
+    std::vector<std::shared_ptr<program::Scope>> p_scope
+) : parse_expr(std::move(p_expr)), scope(std::move(p_scope)), returnable(false) {
+    
+}
+
 auto cblang::program::ScopeParser::binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object> {
     auto out = lhs->call(oper.raw, oper, {}, {rhs});
     if (!out.has_value()) {
@@ -96,13 +104,23 @@ auto cblang::program::ScopeParser::construct_literal(const scanner::Token& token
 }
 
 auto cblang::program::ScopeParser::process() -> std::optional<std::shared_ptr<objects::Object>> {
-    for (const auto& line : code) {
+    if (!code) {
+        throw std::runtime_error("Can't call process without code.");
+    }
+    for (const auto& line : code.value()) {
         auto out = statement(line);
         if (out) {
             return out;
         }
     }
     return {};
+}
+
+auto cblang::program::ScopeParser::process_expr() -> std::shared_ptr<objects::Object> {
+    if (!parse_expr) {
+        throw std::runtime_error("Can't call process_expr without expr.");
+    }
+    return expression(parse_expr.value());
 }
 
 auto cblang::program::ScopeParser::statement(const std::shared_ptr<parser::Statement>& statement) -> std::optional<std::shared_ptr<objects::Object>> {
@@ -229,12 +247,15 @@ auto cblang::program::ScopeParser::set_var(const std::shared_ptr<parser::SetVar>
     if (!variable) {
         throw program::handle_error(statement->name, "'" + statement->name.raw + "' does not exist in the current scope.");
     }
+    if (variable.value()->is_const || variable.value()->is_static) {
+        throw program::handle_error(statement->name, "Cannot modify a const/static variable.");
+    }
     variable.value()->object = expression(statement->val);
 }
 
 auto cblang::program::ScopeParser::create_var(const std::shared_ptr<parser::CreateVar>& statement) -> void {
     scanner::Token name = statement->type_name.second;
-    scope.back()->defined_variables[name.raw] = std::make_shared<objects::Variable>(name, expression(statement->val));
+    scope.back()->defined_variables[name.raw] = std::make_shared<objects::Variable>(name, expression(statement->val), false, false, false); // TODO: Const and static in code.
 }
 
 auto cblang::program::ScopeParser::get_class(const std::shared_ptr<parser::Templated>& templated_class) const -> std::shared_ptr<definitions::TemplatedType> {

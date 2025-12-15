@@ -1,7 +1,6 @@
 #include "scanner.hpp"
 #include "parser.hpp"
 
-#include <charconv>
 #include <memory>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -35,6 +34,8 @@ const std::unordered_map<std::string, TokenType> cblang::scanner::Scanner::keywo
     {"private", PRIVATE_KW},
     {"static", STATIC_KW},
     {"const", CONST_KW},
+    {"operator", OPERATOR_KW},
+    {"cast", CAST_KW},
     {"scope", SCOPE_KW},
     {"super", SUPER_KW},
     {"return", RETURN_KW}
@@ -43,9 +44,12 @@ const std::unordered_map<std::string, TokenType> cblang::scanner::Scanner::keywo
 cblang::scanner::Scanner::Scanner(std::string p_source) : source(std::move(p_source)) {}
 
 auto cblang::scanner::Scanner::scan_tokens() -> std::vector<Token> {
-    while (!is_at_end()) {
+    while (true) {
         start = current;
         scan_token();
+        if (is_at_end()) {
+            break;
+        }
     }
 
     tokens.emplace_back(TokenType::END_OF_FILE, "", line);

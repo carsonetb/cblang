@@ -82,18 +82,18 @@ auto cblang::compiler::Compiler::compile() -> std::shared_ptr<program::Program> 
 auto cblang::compiler::Compiler::main() -> std::shared_ptr<definitions::UserDefinition> {
     auto members = class_members(source->members);
     auto params = process_params(source->parameters);
-    for (const auto& param : params) {
-        members.push_back(param);
-    }
+    // for (const auto& param : params) {
+    //     members.push_back(param);
+    // }
     return std::make_shared<definitions::UserDefinition>(TEMPLATED_EMPTY("Main"), params, members);
 }
 
 auto cblang::compiler::Compiler::process_class(const std::shared_ptr<parser::Class>& input) -> std::shared_ptr<ClassDefinition> {
     auto params = process_params(input->params);
     auto members = class_members(input->members);
-    for (const auto& param : params) {
-        members.push_back(param);
-    }
+    // for (const auto& param : params) {
+    //     members.push_back(param);
+    // }
     auto out = std::make_shared<definitions::UserDefinition>(input->name, params, members);
     defined_classes[out->type_name->name.raw] = out;
     return out;
@@ -105,7 +105,7 @@ auto cblang::compiler::Compiler::process_params(const parser::Parameters& input)
         auto type = process_templated(param.first);
         auto name = param.second;
         std::optional<std::shared_ptr<parser::Expr>> expression; // Expressions need to be supported in Parameters!!!
-        out.push_back(std::make_shared<MemberDefinition>(type, name, expression));
+        out.push_back(std::make_shared<MemberDefinition>(type, name, expression, false, false, false));
     }
     return out;
 }
@@ -124,12 +124,12 @@ auto cblang::compiler::Compiler::class_members(const std::vector<std::shared_ptr
             if (as_function->returns) {
                 returns = get_class(as_function->returns.value(), as_function->returns->raw);
             }
-            out.push_back(std::make_shared<FunctionMember>(name, params, returns, as_function->body));
+            out.push_back(std::make_shared<FunctionMember>(name, params, returns, as_function->body, as_function->is_static, as_function->is_private, as_function->is_const, as_function->is_operator, as_function->is_cast));
         }
         else if (as_variable) {
             auto name = as_variable->name;
             auto type = process_templated(as_variable->type);
-            out.push_back(std::make_shared<MemberDefinition>(type, name, as_variable->value));
+            out.push_back(std::make_shared<MemberDefinition>(type, name, as_variable->value, as_variable->is_static, as_variable->is_private, as_variable->is_const));
         }
         else if (as_class) {
             out.push_back(process_class(as_class));

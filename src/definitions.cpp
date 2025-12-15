@@ -49,8 +49,15 @@ auto cblang::definitions::TemplatedType::stringify() const -> std::string {
 cblang::definitions::MemberDefinition::MemberDefinition(
     std::shared_ptr<TemplatedType> type,
     scanner::Token name,
-    std::optional<std::shared_ptr<parser::Expr>> initializer
-) : type(std::move(type)), name(std::move(name)), initializer(std::move(initializer)) {}
+    std::optional<std::shared_ptr<parser::Expr>> initializer,
+                bool p_is_static,
+                bool p_is_private,
+                bool p_is_const
+) : type(std::move(type)), name(std::move(name)), initializer(std::move(initializer)),
+    is_static(p_is_static), is_private(p_is_private), is_const(p_is_const) 
+{
+
+}
 
 cblang::definitions::MemberDefinition::~MemberDefinition() = default;
 
@@ -58,13 +65,28 @@ cblang::definitions::FunctionMember::FunctionMember(
     const std::shared_ptr<parser::Templated>& p_name, 
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
     std::optional<std::shared_ptr<ClassDefinition>> p_returns,
-    std::vector<std::shared_ptr<parser::Statement>> p_code
-) : MemberDefinition(std::make_shared<TemplatedType>(std::make_shared<FunctionDefinition>(), std::vector<std::shared_ptr<TemplatedType>>()), p_name->name, {}), // Maybe this has an initializer as the scope {}? 
+    std::vector<std::shared_ptr<parser::Statement>> p_code,
+    bool p_is_static,
+    bool p_is_private,
+    bool p_is_const,
+    bool p_is_operator,
+    bool p_is_cast
+) : MemberDefinition(
+        std::make_shared<TemplatedType>(std::make_shared<FunctionDefinition>(), 
+        std::vector<std::shared_ptr<TemplatedType>>()), 
+        p_name->name, 
+        {}, 
+        p_is_static, 
+        p_is_private, 
+        p_is_const
+    ),
     function_name(p_name->name),
     templated_name(p_name),
     parameters(std::move(p_parameters)), 
     returns(std::move(p_returns)),
-    code(std::move(p_code))
+    code(std::move(p_code)),
+    is_operator(p_is_operator),
+    is_cast(p_is_cast)
 {
     for (const auto& template_param : templated_name->templates) {
         auto definition = std::make_shared<TemplateDefinition>(template_param->name);
@@ -79,7 +101,7 @@ cblang::definitions::ClassDefinition::ClassDefinition(
     std::shared_ptr<parser::Templated> p_name,
     std::vector<std::shared_ptr<MemberDefinition>> p_params,
     std::vector<std::shared_ptr<MemberDefinition>> p_members
-) : MemberDefinition(CLASS_TYPE, p_name->name, std::optional<std::shared_ptr<parser::Expr>>()), // Cooked
+) : MemberDefinition(CLASS_TYPE, p_name->name, std::optional<std::shared_ptr<parser::Expr>>(), true, false, false), // Cooked
     type_name(std::move(p_name)),
     params(std::move(p_params)), 
     members(std::move(p_members))
@@ -151,9 +173,11 @@ auto cblang::definitions::UserDefinition::create_object(const scanner::Token& cr
     for (int i = 0; i < passed_params.size(); i++) {
         auto passed_param = passed_params[i];
         auto param_def = params[i];
-        var_params.push_back(std::make_shared<objects::Variable>(param_def->name, passed_param));
+        var_params.push_back(std::make_shared<objects::Variable>(param_def->name, passed_param, false, false, false));
     }
-    return std::make_shared<objects::Object>(shared_from_this(), templates, var_params);
+    auto out = std::make_shared<objects::Object>(shared_from_this(), templates, var_params);
+    out->initialize();
+    return out;
 }
 
 cblang::definitions::BoolDefinition::BoolDefinition() : ClassDefinition(TEMPLATED_EMPTY("bool"), {}, {}) {}
