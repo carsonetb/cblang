@@ -34,6 +34,10 @@ namespace cblang::definitions {
             std::vector<std::shared_ptr<TemplatedType>> p_templates
         ) : cls(std::move(p_cls)), templates(std::move(p_templates)) {}
 
+        TemplatedType(
+            std::shared_ptr<ClassDefinition> p_cls
+        ) : cls(std::move(p_cls)) {}
+
         std::shared_ptr<ClassDefinition> cls;
         std::vector<std::shared_ptr<TemplatedType>> templates;
 
@@ -68,7 +72,7 @@ namespace cblang::definitions {
             FunctionMember(
                 const std::shared_ptr<parser::Templated>& p_name,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
-                std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+                std::optional<std::shared_ptr<TemplatedType>> p_returns,
                 std::vector<std::shared_ptr<parser::Statement>> p_code,
                 bool p_is_static,
                 bool p_is_private,
@@ -82,7 +86,7 @@ namespace cblang::definitions {
             std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
-            std::optional<std::shared_ptr<ClassDefinition>> returns;
+            std::optional<std::shared_ptr<TemplatedType>> returns;
             std::vector<std::shared_ptr<parser::Statement>> code;
 
             bool is_operator;

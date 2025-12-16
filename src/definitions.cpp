@@ -37,10 +37,10 @@ auto cblang::definitions::TemplatedType::operator!=(const TemplatedType& rhs) co
 }
 
 auto cblang::definitions::TemplatedType::stringify() const -> std::string {
+    std::string out;
     if (templates.empty()) {
         return cls->name.raw;
     }
-    std::string out;
     out += cls->name.raw + "<";
     for (const auto& templated : templates) {
         out += templated->stringify() + ", ";
@@ -67,7 +67,7 @@ cblang::definitions::MemberDefinition::~MemberDefinition() = default;
 cblang::definitions::FunctionMember::FunctionMember(
     const std::shared_ptr<parser::Templated>& p_name, 
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
-    std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+    std::optional<std::shared_ptr<TemplatedType>> p_returns,
     std::vector<std::shared_ptr<parser::Statement>> p_code,
     bool p_is_static,
     bool p_is_private,
@@ -98,6 +98,10 @@ cblang::definitions::FunctionMember::FunctionMember(
         }
         templates_by_name[definition->template_name.raw] = definition;
     }
+}
+
+auto cblang::definitions::FunctionMember::validate_call(std::vector<std::shared_ptr<TemplateDefinition>> templates, std::vector<std::shared_ptr<TemplatedType>> args) -> bool {
+    // TODO: Implement
 }
 
 cblang::definitions::ClassDefinition::ClassDefinition(

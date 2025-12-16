@@ -12,6 +12,9 @@ namespace cblang::definitions {
 }
 
 namespace cblang::parser {
+    class ElifStmnt;
+    class ElseStmnt;
+
     struct Templated {
         Templated(
             scanner::Token p_name,
@@ -51,6 +54,62 @@ namespace cblang::parser {
         Return(std::shared_ptr<Expr> expr) : return_expression(std::move(expr)) {}
 
         std::shared_ptr<Expr> return_expression;
+    };
+
+    struct IfStmnt : Statement {
+        IfStmnt(
+            scanner::Token p_start,
+            std::shared_ptr<Expr> check, 
+            std::optional<std::shared_ptr<ElifStmnt>> p_elif_following, 
+            std::optional<std::shared_ptr<ElseStmnt>> p_else_following,
+            std::vector<std::shared_ptr<Statement>> run_if
+        ) : start(std::move(p_start)), check_expression(std::move(check)), elif_following(std::move(p_elif_following)), else_following(std::move(p_else_following)), to_run(std::move(run_if)) {}
+
+        scanner::Token start;
+        std::shared_ptr<Expr> check_expression;
+        std::optional<std::shared_ptr<ElifStmnt>> elif_following;
+        std::optional<std::shared_ptr<ElseStmnt>> else_following;
+        std::vector<std::shared_ptr<Statement>> to_run;
+    };
+
+    struct ElifStmnt : IfStmnt {
+        ElifStmnt(
+            scanner::Token p_start,
+            std::shared_ptr<Expr> check, 
+            std::optional<std::shared_ptr<ElifStmnt>> p_elif_following, 
+            std::optional<std::shared_ptr<ElseStmnt>> p_else_following,
+            std::vector<std::shared_ptr<Statement>> run_if
+        ) : IfStmnt(std::move(p_start), std::move(check), std::move(p_elif_following), std::move(p_else_following), std::move(run_if)) {}
+    };
+
+    struct ElseStmnt : Statement {
+        ElseStmnt(std::vector<std::shared_ptr<Statement>> run_else) : to_run(std::move(run_else)) {}
+
+        std::vector<std::shared_ptr<Statement>> to_run;
+    };
+
+    struct WhileStmnt : Statement {
+        WhileStmnt(
+            scanner::Token p_start,
+            std::shared_ptr<Expr> check, 
+            std::vector<std::shared_ptr<Statement>> run_while
+        ) : start(std::move(p_start)), check_expression(std::move(check)), to_run(std::move(run_while)) {}
+
+        scanner::Token start;
+        std::shared_ptr<Expr> check_expression;
+        std::vector<std::shared_ptr<Statement>> to_run;
+    };
+
+    struct ForStmnt : Statement {
+        ForStmnt(
+            TypeName p_looper, 
+            std::shared_ptr<Expr> p_looped, 
+            std::vector<std::shared_ptr<Statement>> run_for
+        ) : looper(std::move(p_looper)), looped(std::move(p_looped)), to_run(std::move(run_for)) {}
+
+        TypeName looper;
+        std::shared_ptr<Expr> looped;
+        std::vector<std::shared_ptr<Statement>> to_run;
     };
 
     struct Binary : Expr {
@@ -99,8 +158,9 @@ namespace cblang::parser {
     };
 
     struct ArrayExpr : Expr {
-        ArrayExpr(std::vector<std::shared_ptr<Expr>> p_items) : items(std::move(p_items)) {}
+        ArrayExpr(scanner::Token p_start_point, std::vector<std::shared_ptr<Expr>> p_items) : start_point(std::move(p_start_point)), items(std::move(p_items)) {}
 
+        scanner::Token start_point;
         std::vector<std::shared_ptr<Expr>> items;
     };
 
@@ -138,7 +198,7 @@ namespace cblang::parser {
         Function(
             std::shared_ptr<Templated> p_name, 
             Parameters p_params, 
-            std::optional<scanner::Token> p_returns,
+            std::optional<std::shared_ptr<Templated>> p_returns,
             std::vector<std::shared_ptr<Statement>> p_body,
             bool p_is_cast,
             bool p_is_operator,
@@ -155,7 +215,7 @@ namespace cblang::parser {
 
         std::shared_ptr<Templated> templated_name;
         Parameters params;
-        std::optional<scanner::Token> returns;
+        std::optional<std::shared_ptr<Templated>> returns;
         std::vector<std::shared_ptr<Statement>> body;
 
         bool is_cast;
@@ -237,6 +297,11 @@ namespace cblang::parser {
             auto members() -> std::vector<std::shared_ptr<Declaration>>;
             auto scope() -> std::vector<std::shared_ptr<Statement>>;
             auto statement() -> std::shared_ptr<Statement>;
+            auto if_stmnt() -> std::shared_ptr<IfStmnt>;
+            auto elif_stmnt() -> std::shared_ptr<ElifStmnt>;
+            auto else_stmnt() -> std::shared_ptr<ElseStmnt>;
+            auto while_stmnt() -> std::shared_ptr<WhileStmnt>;
+            auto for_stmnt() -> std::shared_ptr<ForStmnt>;
             auto expression() -> std::shared_ptr<Expr>;
             auto logic_or() -> std::shared_ptr<Expr>;
             auto logic_and() -> std::shared_ptr<Expr>;

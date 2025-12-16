@@ -13,7 +13,7 @@ declaration:
 
 varDecl: memberFlags? IDENTIFIER templates? IDENTIFIER ( "=" expression )?
 
-functionDecl: functionFlags? "scope" IDENTIFIER template_definition? ( "(" parameters? ")" )? ( "->" IDENTIFIER )? "=" "{" scope? "}"
+functionDecl: functionFlags? "scope" IDENTIFIER template_definition? ( "(" parameters? ")" )? ( "->" IDENTIFIER templates? )? "=" "{" scope? "}"
 functionFlags: 
     | memberFlags
     | "cast"
@@ -33,7 +33,16 @@ statement:
     | function_or_variable = expression
     | IDENTIFIER templates? IDENTIFIER = expression
     | functionDecl 
-    | "return" expression )? ";"
+    | "return" expression
+    | ifStmnt 
+    | whileStmnt 
+    | forStmnt )? ";"
+
+ifStmnt: "if" "(" expression ")" "{" scope? "}" ( elifStmnt | elseStmnt )?
+elifStmnt: "elif" "(" expression ")" "{" scope? "}" ( elifStmnt | elseStmnt )?
+elseStmnt: "else" "{" scope? "}"
+whileStmnt: "while" "(" expression ")" "{" scope? "}"
+forStmnt: "for" "(" IDENTIFIER IDENTIFIER in expression ")" "{" scope? "}"
 
 expressions: expression ( "," expression )*
 expression: logic_or
@@ -63,4 +72,4 @@ primary:
     | "[" expressions? "]"
 
 function_or_variable: 
-    | IDENTIFIER ( "(" expressions? ")" )? ( "." function_or_variable )?
+    | IDENTIFIER ( templates? "(" expressions? ")" )? ( "." function_or_variable )?

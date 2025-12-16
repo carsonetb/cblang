@@ -147,9 +147,9 @@ auto cblang::parser::Parser::function() -> std::shared_ptr<Function> {
 
     auto name = templated("'scope' keyword", true);
     auto params = parameters();
-    std::optional<Token> returns;
+    std::optional<std::shared_ptr<Templated>> returns;
     if (match({RETURN})) {
-        returns = consume(IDENTIFIER, "Expected return type after '->'");
+        returns = templated("function return");
     }
     consume(EQUAL, "Expected '=' between function declaration and code.");
     consume(LEFT_CURLY, "Expected '{' after '='");
@@ -294,6 +294,70 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
     // throw handle_error(peek(), "Expected expression, variable set, variable create, function create, scope init, or return.");
 }
 
+auto cblang::parser::Parser::if_stmnt() -> std::shared_ptr<IfStmnt> {
+    scanner::Token start = consume(LEFT_PAREN, "Expected '(' after 'if' keyword.");
+    auto expr = expression();
+    consume(RIGHT_PAREN, "Expected ')' after expression in if statement.");
+    consume(LEFT_CURLY, "Expected '{' after ')' in if statement.");
+    auto scope_expr = scope();
+
+    std::optional<std::shared_ptr<ElifStmnt>> elif_following;
+    std::optional<std::shared_ptr<ElseStmnt>> else_following;
+    if (match({ELIF_KW})) {
+        elif_following = elif_stmnt();
+    }
+    else if (match({ELSE_KW})) {
+        else_following = else_stmnt();
+    }
+
+    return std::make_shared<IfStmnt>(start, expr, elif_following, else_following, scope_expr);
+}
+
+auto cblang::parser::Parser::elif_stmnt() -> std::shared_ptr<ElifStmnt> {
+    scanner::Token start = consume(LEFT_PAREN, "Expected '(' after 'elif' keyword.");
+    auto expr = expression();
+    consume(RIGHT_PAREN, "Expected ')' after expression in elif statement.");
+    consume(LEFT_CURLY, "Expected '{' after ')' in elif statement.");
+    auto scope_expr = scope();
+
+    std::optional<std::shared_ptr<ElifStmnt>> elif_following;
+    std::optional<std::shared_ptr<ElseStmnt>> else_following;
+    if (match({ELIF_KW})) {
+        elif_following = elif_stmnt();
+    }
+    else if (match({ELSE_KW})) {
+        else_following = else_stmnt();
+    }
+
+    return std::make_shared<ElifStmnt>(start, expr, elif_following, else_following, scope_expr);
+}
+
+auto cblang::parser::Parser::else_stmnt() -> std::shared_ptr<ElseStmnt> {
+    consume(LEFT_CURLY, "Expected '{' after 'else' keyword.");
+    auto scope_expr = scope();
+    return std::make_shared<ElseStmnt>(scope_expr);
+}
+
+auto cblang::parser::Parser::while_stmnt() -> std::shared_ptr<WhileStmnt> {
+    scanner::Token start = consume(LEFT_PAREN, "Expected '(' after 'while' keyword.");
+    auto expr = expression();
+    consume(RIGHT_PAREN, "Expected ')' after expression in while statement.");
+    consume(LEFT_CURLY, "Expected '{' after ')' in while statement.");
+    auto scope_expr = scope();
+    return std::make_shared<WhileStmnt>(start, expr, scope_expr);
+}
+
+auto cblang::parser::Parser::for_stmnt() -> std::shared_ptr<ForStmnt> {
+    consume(LEFT_PAREN, "Expected '(' after 'for' keyword.");
+    auto looper = TypeName(templated("for statement"), consume(IDENTIFIER, "Expected identifier after type of looper."));
+    consume(IN_KW, "Expected 'in' keyword after type and name of looper.");
+    auto looped = expression();
+    consume(RIGHT_PAREN, "Expected ')' after expression.");
+    consume(LEFT_CURLY, "Expected '{' after ')' in for statement.");
+    auto scope_expr = scope();
+    return std::make_shared<ForStmnt>(looper, looped, scope_expr);
+}
+
 auto cblang::parser::Parser::expression() -> std::shared_ptr<Expr> {
     return logic_or();
 }
@@ -410,6 +474,7 @@ auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
     }
 
     if (match({LEFT_BRACKET})) {
+        auto start = previous();
         std::vector<std::shared_ptr<Expr>> items;
         if (!check(RIGHT_BRACKET)) {
             while (true) {
@@ -420,7 +485,7 @@ auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
             }
         }
         consume(RIGHT_BRACKET, "Expected ']' after array items.");
-        return std::make_shared<ArrayExpr>(items);
+        return std::make_shared<ArrayExpr>(start, items);
     }
 
     throw handle_error(peek(), "Expected literal, identifier, '{', or '('.");
@@ -491,6 +556,8 @@ auto cblang::parser::enable_verbose_logs() -> void {
     logger->info("Verbose logs enabled.");
 }
 
+// TODO: Delete everything downwards (safely one of these functions is used for error handling)
+
 auto debug_expression(const std::shared_ptr<Expr>& expr, const int& tabs) -> std::string {
     std::string out;
     auto as_binary = std::dynamic_pointer_cast<Binary>(expr);
@@ -541,43 +608,44 @@ auto debug_inherits(const std::vector<std::shared_ptr<Templated>>& types, const 
 }
 
 auto debug_member(const std::shared_ptr<Declaration>& decl, const int& tabs = 0) -> std::string {
-    std::string out;
-    auto as_var = std::dynamic_pointer_cast<Variable>(decl);
-    if (as_var) {
-        out += "Variable declaration: \n";
-        out += __TABBING + "Type: " + debug_templates(as_var->type, tabs + 1);
-        out += __TABBING + "Name: " + as_var->name.raw; out += NEWLINE;
-        if (as_var->value) {
-            out += __TABBING + "Value: " + debug_expression(as_var->value, tabs + 1); out += NEWLINE;
-        }
-        else {
-            out += __TABBING + "(no value set)\n";
-        }
-    }
-    auto as_function = std::dynamic_pointer_cast<Function>(decl);
-    if (as_function) {
-        out += "Function declaration: \n";
-        out += __TABBING + "Name: " + debug_templates(as_function->templated_name, tabs + 1);
-        out += __TABBING + "Parameters: \n" + debug_parameters(as_function->params, tabs + 1); out += NEWLINE;
-        if (as_function->returns) {
-            out += __TABBING + "Returns: " + as_function->returns.value().raw; out += NEWLINE;
-        }
-        else {
-            out += __TABBING + "(void return)\n";
-        }
-    }
-    auto as_class = std::dynamic_pointer_cast<Class>(decl);
-    if (as_class) {
-        out += "Class declaration: \n";
-        out += __TABBING + "Name: " + debug_templates(as_class->name, tabs + 1);
-        out += __TABBING + "Inherits: " + debug_inherits(as_class->inherits, tabs + 1);
-        out += __TABBING + "Parameters: \n" + debug_parameters(as_class->params, tabs + 1); out += NEWLINE;
-        out += __TABBING + "Members: \n" + debug_members(as_class->members, tabs + 1); out += NEWLINE;
-    }
-    if (out.empty()) {
-        return "This type needs debugging!";
-    }
-    return out;
+    // std::string out;
+    // auto as_var = std::dynamic_pointer_cast<Variable>(decl);
+    // if (as_var) {
+    //     out += "Variable declaration: \n";
+    //     out += __TABBING + "Type: " + debug_templates(as_var->type, tabs + 1);
+    //     out += __TABBING + "Name: " + as_var->name.raw; out += NEWLINE;
+    //     if (as_var->value) {
+    //         out += __TABBING + "Value: " + debug_expression(as_var->value, tabs + 1); out += NEWLINE;
+    //     }
+    //     else {
+    //         out += __TABBING + "(no value set)\n";
+    //     }
+    // }
+    // auto as_function = std::dynamic_pointer_cast<Function>(decl);
+    // if (as_function) {
+    //     out += "Function declaration: \n";
+    //     out += __TABBING + "Name: " + debug_templates(as_function->templated_name, tabs + 1);
+    //     out += __TABBING + "Parameters: \n" + debug_parameters(as_function->params, tabs + 1); out += NEWLINE;
+    //     if (as_function->returns) {
+    //         out += __TABBING + "Returns: " + as_function->returns.value().raw; out += NEWLINE;
+    //     }
+    //     else {
+    //         out += __TABBING + "(void return)\n";
+    //     }
+    // }
+    // auto as_class = std::dynamic_pointer_cast<Class>(decl);
+    // if (as_class) {
+    //     out += "Class declaration: \n";
+    //     out += __TABBING + "Name: " + debug_templates(as_class->name, tabs + 1);
+    //     out += __TABBING + "Inherits: " + debug_inherits(as_class->inherits, tabs + 1);
+    //     out += __TABBING + "Parameters: \n" + debug_parameters(as_class->params, tabs + 1); out += NEWLINE;
+    //     out += __TABBING + "Members: \n" + debug_members(as_class->members, tabs + 1); out += NEWLINE;
+    // }
+    // if (out.empty()) {
+    //     return "This type needs debugging!";
+    // }
+    // return out;
+    return "";
 }
 
 auto cblang::parser::debug_templates(const std::shared_ptr<Templated>& decl, const int& tabs, const bool& one_line) -> std::string {

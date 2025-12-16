@@ -6,6 +6,7 @@
 #include "scanner.hpp"
 #include "util.hpp"
 
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <spdlog/logger.h>
@@ -120,9 +121,9 @@ auto cblang::compiler::Compiler::class_members(const std::vector<std::shared_ptr
             auto name = as_function->templated_name;
             auto params = process_params(as_function->params);
             auto templates = process_templated_definition(as_function->templated_name);
-            std::optional<std::shared_ptr<ClassDefinition>> returns;
+            std::optional<std::shared_ptr<TemplatedType>> returns;
             if (as_function->returns) {
-                returns = get_class(as_function->returns.value(), as_function->returns->raw);
+                returns = process_templated(as_function->returns.value());
             }
             out.push_back(std::make_shared<FunctionMember>(name, params, returns, as_function->body, as_function->is_static, as_function->is_private, as_function->is_const, as_function->is_operator, as_function->is_cast));
         }
@@ -156,15 +157,258 @@ auto cblang::compiler::StaticAnalyzer::analyze_class(const std::shared_ptr<UserD
 }
 
 auto cblang::compiler::StaticAnalyzer::function(const std::shared_ptr<FunctionMember>& func) -> void {
-
+    Stati
 }
 
-auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::Statement>& stmnt) -> void {
-
+auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<TemplatedType>> {
+    auto as_expr = std::dynamic_pointer_cast<parser::Expr>(stmnt);
+    if (as_expr) {
+        expression(as_expr, false);
+        return {};
+    }
+    auto as_set_var = std::dynamic_pointer_cast<parser::SetVar>(stmnt);
+    if (as_set_var) {
+        auto variable = assert_var_exists(as_set_var->name);
+        expression(as_set_var->val);
+        assert(as_set_var->val->evaluates_to.has_value());
+        auto expr_type = as_set_var->val->evaluates_to.value();
+        if (*variable->type != *expr_type) { // TODO: Check if the variable can be casted.
+            throw handle_error(as_set_var->name, "(during static analysis) Cannot set Object of type '" + expr_type->stringify() + "' to variable of type '" + variable->type->stringify() + "'.");
+        }
+        return {};
+    }
+    auto as_create_var = std::dynamic_pointer_cast<parser::CreateVar>(stmnt);
+    if (as_create_var) {
+        scanner::Token var_name = as_create_var->type_name.second;
+        auto var_type = process_templated(as_create_var->type_name.first);
+        expression(as_create_var->val);
+        assert(as_create_var->val->evaluates_to.has_value());
+        auto expr_type = as_create_var->val->evaluates_to.value();
+        if (*var_type != *expr_type) { // TODO: Check if the variable can be casted.
+            throw handle_error(var_name, "(during static analysis) Cannot set Object of type '" + expr_type->stringify() + "' to variable of type '" + var_type->stringify() + "'");
+        }
+        current_function_scopes.back()[var_name.raw] = std::make_shared<MemberDefinition>(var_type, var_name, std::optional<std::shared_ptr<parser::Expr>>(), false, false, false);
+        return {};
+    }
+    auto as_return = std::dynamic_pointer_cast<parser::Return>(stmnt);
+    if (as_return) {
+        expression(as_return->return_expression);
+        return as_return->return_expression->evaluates_to;
+    }
+    auto as_if_stmnt = std::dynamic_pointer_cast<parser::IfStmnt>(stmnt);
+    if (as_if_stmnt) {
+        expression(as_if_stmnt->check_expression);
+        assert(as_if_stmnt->check_expression->evaluates_to.has_value());
+        if (as_if_stmnt->check_expression->evaluates_to.value()->cls->pretty_name != "bool") { // skull emoji
+            throw handle_error(as_if_stmnt->start, "Expression inside of if statement must evaluate to a bool type.");
+        }
+        current_function_scopes.emplace_back();
+        scope(as_if_stmnt->to_run);
+        current_function_scopes.pop_back();
+        if (as_if_stmnt->elif_following.has_value()) {
+            statement(as_if_stmnt->elif_following.value());
+        }
+        if (as_if_stmnt->else_following.has_value()) {
+            statement(as_if_stmnt->else_following.value());
+        }
+        return {};
+    }
+    auto as_else_statement = std::dynamic_pointer_cast<parser::ElseStmnt>(stmnt);
+    if (as_else_statement) {
+        current_function_scopes.emplace_back();
+        scope(as_else_statement->to_run);
+        current_function_scopes.pop_back();
+    }
+    auto as_while_stmnt = std::dynamic_pointer_cast<parser::WhileStmnt>(stmnt);
+    if (as_while_stmnt) {
+        expression(as_while_stmnt->check_expression);
+        assert(as_while_stmnt->check_expression->evaluates_to.has_value());
+        if (as_while_stmnt->check_expression->evaluates_to.value()->cls->pretty_name != "bool") { // skull emoji
+            throw handle_error(as_while_stmnt->start, "Expression inside of while statement must evaluate to a bool type.");
+        }
+        current_function_scopes.emplace_back();
+        scope(as_while_stmnt->to_run);
+        current_function_scopes.pop_back();
+        return {};
+    }
+    auto as_for_stmnt = std::dynamic_pointer_cast<parser::ForStmnt>(stmnt);
+    if (as_for_stmnt) {
+        expression(as_for_stmnt->looped);
+        assert(as_for_stmnt->looped->evaluates_to.has_value());
+        auto looped_type = as_for_stmnt->looped->evaluates_to.value();
+        scanner::Token looper_name = as_for_stmnt->looper.second;
+        if (looped_type->cls->name.raw != "array") {
+            throw handle_error(looper_name, "Looper can only be constructed from an array.");
+        }
+        auto looper_type = process_templated(as_for_stmnt->looper.first);
+        auto looped_item_type = looped_type->templates[0];
+        if (*looped_item_type != *looper_type) { // TODO: Check if variable can be casted
+            throw handle_error(as_for_stmnt->looper.first->name, "Incorrect looper type (should be '" + looped_item_type->cls->pretty_name + "'.");
+        }
+        current_function_scopes.emplace_back();
+        current_function_scopes.back()[looper_name.raw] = std::make_shared<MemberDefinition>(looper_type, looper_name, std::optional<std::shared_ptr<parser::Expr>>(), false, false, false);
+        scope(as_for_stmnt->to_run);
+        current_function_scopes.pop_back();
+        return {};
+    }
+    assert(false);
 }
 
-auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::Expr>& expr) -> void {
+auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::Expr>& expr, bool must_evaluate) -> void {
+    auto as_binary = std::dynamic_pointer_cast<parser::Binary>(expr);
+    if (as_binary) {
+        as_binary->evaluates_to = binary(as_binary->left, as_binary->op, as_binary->right);
+        return;
+    }
+    auto as_logical = std::dynamic_pointer_cast<parser::Logical>(expr);
+    if (as_logical) {
+        as_logical->evaluates_to = binary(as_logical->left, as_logical->op, as_logical->right);
+        return;
+    }
+    auto as_grouping = std::dynamic_pointer_cast<parser::Grouping>(expr);
+    if (as_grouping) {
+        expression(as_grouping->expression);
+        as_grouping->evaluates_to = as_grouping->expression->evaluates_to;
+    }
+    auto as_literal = std::dynamic_pointer_cast<parser::Literal>(expr);
+    if (as_literal) {
+        auto literal = as_literal->literal;
+        auto as_bool = std::dynamic_pointer_cast<scanner::BoolLiteral>(literal);
+        auto as_int = std::dynamic_pointer_cast<scanner::IntLiteral>(literal);
+        auto as_float = std::dynamic_pointer_cast<scanner::FloatLiteral>(literal);
+        auto as_char = std::dynamic_pointer_cast<scanner::CharLiteral>(literal);
+        auto as_string = std::dynamic_pointer_cast<scanner::StringLiteral>(literal);
+        if (as_bool) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<BoolDefinition>()); }
+        if (as_int) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<IntDefinition>()); }
+        if (as_float) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<FloatDefinition>()); }
+        if (as_char) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<CharDefinition>()); }
+        if (as_string) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<StringDefinition>()); }
+        if (!as_literal->evaluates_to.has_value()) {
+            throw handle_error(as_literal->token, "(during static analysis) Unkown or base type Literal.");
+        }
+        return;
+    }
+    auto as_unary = std::dynamic_pointer_cast<parser::Unary>(expr);
+    if (as_unary) {
+        expression(as_unary->right);
+        assert(as_unary->right->evaluates_to.has_value());
+        auto def = as_unary->right->evaluates_to.value();
+        if (!def->cls->members_by_name.contains(as_unary->op.raw)) {
+            throw handle_error(as_unary->op, "(during static analysis) Object of type " + def->stringify() + " has no operator overload for '" + as_unary->op.raw + "'.");
+        }
+        auto func = std::dynamic_pointer_cast<FunctionMember>(def->cls->members_by_name.at(as_unary->op.raw)); // Should always succeed
+        func->validate_call({}, {});
+        if (!func->returns.has_value()) {
+            throw handle_error(func->function_name, "(during static analysis) Operator functions must return a value.");
+        }
+        as_unary->evaluates_to = func->returns.value();
+        return;
+    }
+    auto as_scope_expr = std::dynamic_pointer_cast<parser::ScopeExpr>(expr);
+    if (as_scope_expr) {
+        for (const auto& stmnt : as_scope_expr->statements) {
+            statement(stmnt);
+        }
+        as_scope_expr->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<FunctionDefinition>());
+        return;
+    }
+    auto as_array_expr = std::dynamic_pointer_cast<parser::ArrayExpr>(expr);
+    if (as_array_expr) {
+        std::shared_ptr<TemplatedType> contained_type = nullptr;
+        for (const auto& item_expr : as_array_expr->items) {
+            expression(item_expr);
+            assert(item_expr->evaluates_to.has_value());
+            if (!contained_type) {
+                contained_type = item_expr->evaluates_to.value();
+            }
+            if (*item_expr->evaluates_to.value() != *contained_type) {
+                throw handle_error(as_array_expr->start_point, "(during static analysis) Array literal does not contain objects of a consistent type.");
+            }
+        }
+        if (!contained_type) {
+            throw handle_error(as_array_expr->start_point, "(during static analysis) Cannot deduce type of empty array, use array<type>() constructor instead.");
+        }
+        as_array_expr->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<ArrayDefinition>(), std::vector<std::shared_ptr<TemplatedType>>({contained_type}));
+        return;
+    }
+    auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
+    if (as_accessible) {
+        accessible(as_accessible, {}, must_evaluate);
+        return;
+    }
+    assert(false);
+}
 
+auto cblang::compiler::StaticAnalyzer::accessible(const std::shared_ptr<parser::Accessible>& item, const std::optional<std::shared_ptr<ClassDefinition>>& access_from, bool must_evaluate) -> void {
+    auto as_call_expr = std::dynamic_pointer_cast<parser::CallExpr>(item);
+    if (as_call_expr) {
+        std::shared_ptr<MemberDefinition> as_member = nullptr;
+        scanner::Token func_name = as_call_expr->name->name;
+        if (access_from) {
+            if (!access_from.value()->members_by_name.contains(func_name.raw)) {
+                throw handle_error(func_name, "(during static analysis) No function named '" + func_name.raw + " exists in class '" + access_from.value()->pretty_name + "'.");
+            }
+            as_member = access_from.value()->members_by_name.at(func_name.raw);
+        }
+        else {
+            as_member = assert_function_exists(func_name);
+        }
+        auto function = std::dynamic_pointer_cast<FunctionMember>(as_member);
+        if (!function) {
+            throw handle_error(func_name, "(during static analysis) Expected a function to call but found a variable instead.");
+        }
+        std::vector<std::shared_ptr<TemplateDefinition>> passed_templates;
+        for (const auto& templated : as_call_expr->name->templates) {
+            passed_templates.push_back(std::make_shared<TemplateDefinition>(process_templated(templated)));
+        }
+        std::vector<std::shared_ptr<TemplatedType>> argument_types;
+        for (const auto& arg : as_call_expr->args) {
+            expression(arg);
+            assert(arg->evaluates_to.has_value());
+            argument_types.push_back(arg->evaluates_to.value());
+        }
+        function->validate_call(passed_templates, argument_types);
+        if (must_evaluate && !function->returns.has_value()) {
+            throw handle_error(func_name, "(during static analysis) This function must return a value.");
+        }
+        as_call_expr->evaluates_to = function->returns;
+        return;
+    }
+    auto as_var_expr = std::dynamic_pointer_cast<parser::VarExpr>(item);
+    if (as_var_expr) {
+        std::shared_ptr<MemberDefinition> as_member = nullptr;
+        scanner::Token var_name = as_var_expr->name;
+        if (access_from) {
+            if (!access_from.value()->members_by_name.contains(var_name.raw)) {
+                throw handle_error(var_name, "(during static analysis) No function named '" + var_name.raw + " exists in class '" + access_from.value()->pretty_name + "'.");
+            }
+            as_member = access_from.value()->members_by_name.at(var_name.raw);
+        }
+        else {
+            as_member = assert_var_exists(var_name);
+        }
+        as_var_expr->evaluates_to = as_member->type;
+        return;
+    }
+    assert(false);
+}
+
+auto cblang::compiler::StaticAnalyzer::binary(const std::shared_ptr<parser::Expr>& left, const scanner::Token& oper, const std::shared_ptr<parser::Expr>& right) -> std::shared_ptr<TemplatedType> {
+    expression(left);
+    expression(right);
+    assert(left->evaluates_to.has_value());
+    assert(right->evaluates_to.has_value());
+    auto left_def = left->evaluates_to.value();
+    auto right_def = right->evaluates_to.value();
+    if (!left_def->cls->members_by_name.contains(oper.raw)) {
+        throw handle_error(oper, "(during static analysis) Object of type " + left_def->stringify() + " has no operator overload for '" + oper.raw + "'.");
+    }
+    auto func = std::dynamic_pointer_cast<FunctionMember>(left_def->cls->members_by_name.at(oper.raw)); // Should always succeed
+    func->validate_call({}, {right_def});
+    if (!func->returns.has_value()) {
+        throw handle_error(func->function_name, "(during static analysis) Operator functions must return a value.");
+    }
+    return func->returns.value();
 }
 
 auto cblang::compiler::StaticAnalyzer::assert_function_exists(const scanner::Token& name) const -> std::shared_ptr<FunctionMember> {
@@ -178,16 +422,32 @@ auto cblang::compiler::StaticAnalyzer::assert_function_exists(const scanner::Tok
 auto cblang::compiler::StaticAnalyzer::assert_var_exists(const scanner::Token& name) const -> std::shared_ptr<MemberDefinition> {
     for (unsigned long i = current_function_scopes.size() - 1; i >= 0; i--) {
         const auto& scope = current_function_scopes[i];
-        if (!scope.defined_variables.contains(name.raw)) {
+        if (!scope.contains(name.raw)) {
             continue;
         }
-        return scope.defined_variables.at(name.raw);
+        return scope.at(name.raw);
     }
-    if (current_class.defined_variables.contains(name.raw)) {
-        return current_class.defined_variables.at(name.raw);
+    if (current_class.contains(name.raw)) {
+        return current_class.at(name.raw);
     }
-    if (main_scope.defined_variables.contains(name.raw)) {
-        return main_scope.defined_variables.at(name.raw);
+    if (main_scope.contains(name.raw)) {
+        return main_scope.at(name.raw);
     }
     throw handle_error(name, "(during static analysis) Variable " + name.raw + " not found in the current scope.");
+}
+
+auto cblang::compiler::StaticAnalyzer::assert_class_exists(const scanner::Token& name) const -> std::shared_ptr<ClassDefinition> {
+    if (defined_classes.contains(name.raw)) {
+        return defined_classes.at(name.raw);
+    }
+    throw handle_error(name, "(during static analysis) Class does not exist.");
+}
+
+auto cblang::compiler::StaticAnalyzer::process_templated(const std::shared_ptr<parser::Templated>& input) const -> std::shared_ptr<TemplatedType> {
+    auto cls = assert_class_exists(input->name);
+    std::vector<std::shared_ptr<TemplatedType>> templates;
+    for (const auto& templated : input->templates) {
+        templates.push_back(process_templated(templated));
+    }
+    return std::make_shared<TemplatedType>(cls, templates);
 }

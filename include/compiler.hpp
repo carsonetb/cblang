@@ -7,6 +7,7 @@
 #include "scanner.hpp"
 #include <exception>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -46,10 +47,7 @@ namespace cblang::compiler {
             [[nodiscard]] auto get_class(const scanner::Token& token, const std::string& name) const -> std::shared_ptr<ClassDefinition>;
     };
 
-    struct StaticScope {
-        std::unordered_map<std::string, std::shared_ptr<MemberDefinition>> defined_variables;
-        std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> defined_classes;
-    };
+    using StaticScope = std::unordered_map<std::string, std::shared_ptr<MemberDefinition>>;
 
     class StaticAnalyzer {
         public:
@@ -60,15 +58,21 @@ namespace cblang::compiler {
         private:
             std::shared_ptr<program::Program> source;
 
+            std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> defined_classes;
             StaticScope main_scope;
             StaticScope current_class;
             std::vector<StaticScope> current_function_scopes;
 
             auto analyze_class(const std::shared_ptr<UserDefinition>& definition) -> void;
             auto function(const std::shared_ptr<FunctionMember>& func) -> void;
-            auto statement(const std::shared_ptr<parser::Statement>& stmnt) -> void;
-            auto expression(const std::shared_ptr<parser::Expr>& expr) -> void;
+            auto scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> void;
+            auto statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<TemplatedType>>;
+            auto expression(const std::shared_ptr<parser::Expr>& expr, bool must_evaluate = true) -> void;
+            auto accessible(const std::shared_ptr<parser::Accessible>& item, const std::optional<std::shared_ptr<ClassDefinition>>& access_from = {}, bool must_evaluate = true) -> void;
+            auto binary(const std::shared_ptr<parser::Expr>& left, const scanner::Token& oper, const std::shared_ptr<parser::Expr>& right) -> std::shared_ptr<TemplatedType>;
             auto assert_function_exists(const scanner::Token& name) const -> std::shared_ptr<FunctionMember>;
             auto assert_var_exists(const scanner::Token& name) const -> std::shared_ptr<MemberDefinition>;
+            auto assert_class_exists(const scanner::Token& name) const -> std::shared_ptr<ClassDefinition>;
+            auto process_templated(const std::shared_ptr<parser::Templated>& input) const -> std::shared_ptr<TemplatedType>;
     };
 }

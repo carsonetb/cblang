@@ -38,7 +38,13 @@ const std::unordered_map<std::string, TokenType> cblang::scanner::Scanner::keywo
     {"cast", CAST_KW},
     {"scope", SCOPE_KW},
     {"super", SUPER_KW},
-    {"return", RETURN_KW}
+    {"return", RETURN_KW},
+    {"if", IF_KW},
+    {"elif", ELIF_KW},
+    {"else", ELSE_KW},
+    {"for", FOR_KW},
+    {"while", WHILE_KW},
+    {"in", IN_KW}
 };
 
 cblang::scanner::Scanner::Scanner(std::string p_source) : source(std::move(p_source)) {}
