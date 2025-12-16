@@ -48,6 +48,7 @@ namespace cblang::compiler {
     };
 
     using StaticScope = std::unordered_map<std::string, std::shared_ptr<MemberDefinition>>;
+    using StaticTemplateScope = std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>>;
 
     class StaticAnalyzer {
         public:
@@ -61,11 +62,15 @@ namespace cblang::compiler {
             std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> defined_classes;
             StaticScope main_scope;
             StaticScope current_class;
+            StaticTemplateScope current_class_templates;
             std::vector<StaticScope> current_function_scopes;
+            std::vector<StaticTemplateScope> current_function_templates;
+            std::optional<std::shared_ptr<TemplatedType>> function_returns;
 
+            auto init_members(const std::shared_ptr<UserDefinition>& definition, StaticScope& scope) -> void;
             auto analyze_class(const std::shared_ptr<UserDefinition>& definition) -> void;
             auto function(const std::shared_ptr<FunctionMember>& func) -> void;
-            auto scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> void;
+            auto scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> std::optional<std::shared_ptr<TemplatedType>>;
             auto statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<TemplatedType>>;
             auto expression(const std::shared_ptr<parser::Expr>& expr, bool must_evaluate = true) -> void;
             auto accessible(const std::shared_ptr<parser::Accessible>& item, const std::optional<std::shared_ptr<ClassDefinition>>& access_from = {}, bool must_evaluate = true) -> void;

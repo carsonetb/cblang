@@ -7,6 +7,7 @@
 #include "util.hpp"
 
 #include <cassert>
+#include <exception>
 #include <memory>
 #include <optional>
 #include <spdlog/logger.h>
@@ -148,16 +149,101 @@ auto cblang::compiler::Compiler::process_templated(const std::shared_ptr<parser:
     return std::make_shared<TemplatedType>(cls, templates);
 }
 
+auto cblang::compiler::StaticAnalyzer::init_members(const std::shared_ptr<UserDefinition>& definition, StaticScope& scope) -> void {// Next add static member functions.
+    for (const auto& member : definition->members) {
+        auto as_function = std::dynamic_pointer_cast<FunctionMember>(member);
+        if (!as_function || !as_function->is_static) {
+            continue;
+        }
+        if (scope.contains(as_function->function_name.raw)) {
+            throw handle_error(as_function->function_name, "(during static analysis) A member variable already exists with this name.");
+        }
+        scope[as_function->function_name.raw] = as_function;
+    }
+
+    // Next add class parameters.
+    for (const auto& param : definition->params) {
+        scope[param->name.raw] = param;
+    }
+
+    // Next check all members and initializers.
+    for (const auto& member : definition->members) {
+        if (std::dynamic_pointer_cast<ClassDefinition>(member) || std::dynamic_pointer_cast<FunctionMember>(member)) {
+            continue; // TODO: Fix
+        }
+        if (!member->initializer) {
+            throw handle_error(member->name, "(during static analysis) Variable initializer is required!");
+        }
+        std::shared_ptr<parser::Expr> initializer = member->initializer.value();
+        expression(initializer);
+        if (*initializer->evaluates_to.value() != *member->type) {
+            throw handle_error(member->name, "(during static analysis) Initializer expression doesn't evaluate to the same type as the variable.");
+        }
+    }
+
+    // Now check all non-static member functions.
+    for (const auto& member : definition->members) {
+        auto as_function = std::dynamic_pointer_cast<FunctionMember>(member);
+        if (as_function && !as_function->is_static) {
+            function(as_function);
+            continue;
+        }
+    }
+}
+
 auto cblang::compiler::StaticAnalyzer::perform_analysis() -> int {
+    main_scope = StaticScope();
+
+    try {
+        init_members(source->main_class, main_scope);
+    }
+    catch (CompileException exception) {
+        return 1;
+    }
+
     return 0;
 }
 
 auto cblang::compiler::StaticAnalyzer::analyze_class(const std::shared_ptr<UserDefinition>& definition) -> void {
+    current_class = StaticScope();
+    current_class_templates = StaticTemplateScope();
 
+    // First add template types.
+    for (const auto& templ : definition->templates) {
+        current_class_templates[templ->template_name.raw] = templ;
+    }
+
+    init_members(definition, current_class);
 }
 
 auto cblang::compiler::StaticAnalyzer::function(const std::shared_ptr<FunctionMember>& func) -> void {
-    Stati
+    StaticScope this_scope;
+    StaticTemplateScope this_templates;
+    for (const auto& param : func->parameters) {
+        this_scope[param->name.raw] = param;
+    }
+    for (const auto& templ : func->templates) {
+        assert(templ->template_used.has_value());
+        this_templates[templ->template_name.raw] = templ;
+    }
+    current_function_scopes.push_back(this_scope);
+    current_function_templates.push_back(this_templates);
+    function_returns = func->returns;
+    bool all_paths_return = false;
+
+    for (const auto& stmnt : func->code) {
+        if (statement(stmnt).has_value()) { // Break because all return types have satisfied.
+            all_paths_return = true;
+            break;
+        }
+    }
+
+    current_function_scopes.pop_back();
+    current_function_templates.pop_back();
+
+    if (!all_paths_return) {
+        throw handle_error(func->function_name, "All code paths must return a value.");
+    }
 }
 
 auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<TemplatedType>> {
@@ -251,7 +337,7 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         current_function_scopes.pop_back();
         return {};
     }
-    assert(false);
+    throw std::exception();
 }
 
 auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::Expr>& expr, bool must_evaluate) -> void {
@@ -297,7 +383,7 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
             throw handle_error(as_unary->op, "(during static analysis) Object of type " + def->stringify() + " has no operator overload for '" + as_unary->op.raw + "'.");
         }
         auto func = std::dynamic_pointer_cast<FunctionMember>(def->cls->members_by_name.at(as_unary->op.raw)); // Should always succeed
-        func->validate_call({}, {});
+        func->validate_call(as_unary->op, {}, {});
         if (!func->returns.has_value()) {
             throw handle_error(func->function_name, "(during static analysis) Operator functions must return a value.");
         }
@@ -367,7 +453,7 @@ auto cblang::compiler::StaticAnalyzer::accessible(const std::shared_ptr<parser::
             assert(arg->evaluates_to.has_value());
             argument_types.push_back(arg->evaluates_to.value());
         }
-        function->validate_call(passed_templates, argument_types);
+        function->validate_call(func_name, passed_templates, argument_types);
         if (must_evaluate && !function->returns.has_value()) {
             throw handle_error(func_name, "(during static analysis) This function must return a value.");
         }
@@ -404,7 +490,7 @@ auto cblang::compiler::StaticAnalyzer::binary(const std::shared_ptr<parser::Expr
         throw handle_error(oper, "(during static analysis) Object of type " + left_def->stringify() + " has no operator overload for '" + oper.raw + "'.");
     }
     auto func = std::dynamic_pointer_cast<FunctionMember>(left_def->cls->members_by_name.at(oper.raw)); // Should always succeed
-    func->validate_call({}, {right_def});
+    func->validate_call(oper, {}, {right_def});
     if (!func->returns.has_value()) {
         throw handle_error(func->function_name, "(during static analysis) Operator functions must return a value.");
     }
