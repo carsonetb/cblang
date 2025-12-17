@@ -33,7 +33,7 @@ statement:
     | function_or_variable = expression
     | IDENTIFIER templates? IDENTIFIER = expression
     | functionDecl 
-    | "return" expression
+    | "return" expression?
     | ifStmnt 
     | whileStmnt 
     | forStmnt )? ";"

@@ -192,7 +192,7 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
             as_scope_expr->declare_point, 
             std::vector<std::shared_ptr<definitions::MemberDefinition>>(), 
             std::vector<std::shared_ptr<definitions::TemplateDefinition>>(),
-            std::optional<std::shared_ptr<definitions::ClassDefinition>>(),
+            std::optional<std::shared_ptr<definitions::TemplatedType>>(),
             as_scope_expr->statements
         );
     }

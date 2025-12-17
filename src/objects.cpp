@@ -149,7 +149,7 @@ auto cblang::objects::Object::get_template_array() const -> std::vector<std::sha
 }
 
 cblang::objects::Callable::Callable(
-    std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+    std::optional<std::shared_ptr<TemplatedType>> p_returns,
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters
 ):  Object(std::make_shared<FunctionDefinition>(), {}, {}),
@@ -235,7 +235,7 @@ cblang::objects::FunctionObject::FunctionObject(
     scanner::Token p_declare_point,
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
     std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
-    std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+    std::optional<std::shared_ptr<TemplatedType>> p_returns,
     std::optional<std::vector<std::shared_ptr<parser::Statement>>> p_code,
     bool p_is_cast,
     bool p_is_operator,

@@ -58,6 +58,9 @@ auto cblang::cblang_parse_code(const std::string& code) -> std::optional<std::sh
     }
     compiler::Compiler compiler(program.value());
     auto compiled_program = compiler.compile();
+    if (!compiled_program.has_value()) {
+        return {};
+    }
     logger->info("Finished parsing and compiling code.");
 
     // if (compiler_out.errors.empty()) {

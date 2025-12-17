@@ -25,7 +25,7 @@ namespace cblang::compiler {
         public:
             Compiler(std::shared_ptr<parser::ParsedProgram> p_source) : source(std::move(p_source)) {}
 
-            auto compile() -> std::shared_ptr<program::Program>;
+            auto compile() -> std::optional<std::shared_ptr<program::Program>>;
 
         private:
             std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes = {

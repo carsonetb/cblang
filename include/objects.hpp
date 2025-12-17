@@ -57,12 +57,12 @@ namespace cblang::objects {
     class Callable : public Object {
         public:
             Callable(
-                std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+                std::optional<std::shared_ptr<TemplatedType>> p_returns,
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters
             );
 
-            std::optional<std::shared_ptr<ClassDefinition>> returns;
+            std::optional<std::shared_ptr<TemplatedType>> returns;
             std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
@@ -93,7 +93,7 @@ namespace cblang::objects {
                 scanner::Token declare_point,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
                 std::vector<std::shared_ptr<TemplateDefinition>> p_templates,
-                std::optional<std::shared_ptr<ClassDefinition>> p_returns,
+                std::optional<std::shared_ptr<TemplatedType>> p_returns,
                 std::optional<std::vector<std::shared_ptr<parser::Statement>>> code,
                 bool p_is_cast = false,
                 bool p_is_operator = false,

@@ -28,8 +28,11 @@ auto main(int argc, char *argv[]) -> int {
 
     cblang::init(true);
     auto out = cblang::cblang_parse_code(buffer.str());
+    if (!out.has_value()) {
+        return 1;
+    }
     if (out) {
-        auto obj = out.value()->create_object({std::make_shared<cblang::objects::CharObject>(5), std::make_shared<cblang::objects::StringObject>("input")});
+        auto obj = out.value()->create_object({std::make_shared<cblang::objects::IntObject>(5), std::make_shared<cblang::objects::StringObject>("input")});
         if (!obj) {
             return 1;
         }

@@ -283,7 +283,7 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
             return function();
         }
         if (match({RETURN_KW})) {
-            return std::make_shared<Return>(expression());
+            return std::make_shared<Return>(previous(), expression());
         }
         return expression();
     }

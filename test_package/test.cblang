@@ -1,7 +1,7 @@
 class Main (int alpha, string beta) = (
     const int x = 0,
     scope func -> string = {
-        return beta;
+        return 2;
     },
     class Sub<T, U> (int alpha2, char beta2) = (
 

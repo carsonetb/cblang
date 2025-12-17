@@ -49,7 +49,7 @@ auto cblang::compiler::enable_verbose_logs() -> void {
 }
 
 auto cblang::compiler::handle_error(const scanner::Token& token, const std::string& error) -> CompileException {
-    logger->error("[line " + std::to_string(token.line) + "] [token " + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "] " + error);
+    logger->error("[line " + std::to_string(token.line) + "] [token '" + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "'] " + error);
     return {};
 }
 
@@ -60,7 +60,7 @@ auto cblang::compiler::Compiler::get_class(const scanner::Token& token, const st
     throw handle_error(token, "Class '" + name + "' not defined yet.");  
 }
 
-auto cblang::compiler::Compiler::compile() -> std::shared_ptr<program::Program> {
+auto cblang::compiler::Compiler::compile() -> std::optional<std::shared_ptr<program::Program>> {
     logger->info("Compiler started.");
 
     std::shared_ptr<UserDefinition> main_class;
@@ -74,6 +74,18 @@ auto cblang::compiler::Compiler::compile() -> std::shared_ptr<program::Program> 
     }
 
     auto out = std::make_shared<program::Program>(main_class);
+
+    logger->info("Beginning static analysis.");
+
+    StaticAnalyzer analyzer(out);
+    int err = analyzer.perform_analysis();
+
+    if (err == 1) {
+        logger->error("Static analysis failed.");
+        return {};
+    }
+    
+    logger->info("Static analysis finished successfully.");
 
     logger->info("Compiler finished successfully.");
     out->valid = true;
@@ -246,6 +258,16 @@ auto cblang::compiler::StaticAnalyzer::function(const std::shared_ptr<FunctionMe
     }
 }
 
+auto cblang::compiler::StaticAnalyzer::scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> std::optional<std::shared_ptr<TemplatedType>> {
+    for (const auto& stmnt : statements) {
+        auto ret = statement(stmnt);
+        if (ret) {
+            return ret;
+        }
+    }
+    return {};
+}
+
 auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<TemplatedType>> {
     auto as_expr = std::dynamic_pointer_cast<parser::Expr>(stmnt);
     if (as_expr) {
@@ -279,6 +301,13 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
     auto as_return = std::dynamic_pointer_cast<parser::Return>(stmnt);
     if (as_return) {
         expression(as_return->return_expression);
+        auto ret_type = as_return->return_expression->evaluates_to;
+        if (!function_returns.has_value()) {
+            throw handle_error(as_return->ret_kw_point, "(during static analysis) Cannot return a value when there is no function return type.");
+        }
+        if (*ret_type.value() != *function_returns.value()) {
+            throw handle_error(as_return->ret_kw_point, "(during static analysis) Return type doesn't match the function return type.");
+        }
         return as_return->return_expression->evaluates_to;
     }
     auto as_if_stmnt = std::dynamic_pointer_cast<parser::IfStmnt>(stmnt);
@@ -289,21 +318,28 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
             throw handle_error(as_if_stmnt->start, "Expression inside of if statement must evaluate to a bool type.");
         }
         current_function_scopes.emplace_back();
-        scope(as_if_stmnt->to_run);
+        auto ret_type = scope(as_if_stmnt->to_run);
         current_function_scopes.pop_back();
         if (as_if_stmnt->elif_following.has_value()) {
-            statement(as_if_stmnt->elif_following.value());
+            auto elif_ret = statement(as_if_stmnt->elif_following.value());
+            if (ret_type.has_value()) {
+                ret_type = elif_ret;
+            }
         }
         if (as_if_stmnt->else_following.has_value()) {
-            statement(as_if_stmnt->else_following.value());
+            auto else_ret = statement(as_if_stmnt->else_following.value());
+            if (ret_type.has_value()) {
+                ret_type = else_ret;
+            }
         }
-        return {};
+        return ret_type;
     }
     auto as_else_statement = std::dynamic_pointer_cast<parser::ElseStmnt>(stmnt);
     if (as_else_statement) {
         current_function_scopes.emplace_back();
-        scope(as_else_statement->to_run);
+        auto ret_type = scope(as_else_statement->to_run);
         current_function_scopes.pop_back();
+        return ret_type;
     }
     auto as_while_stmnt = std::dynamic_pointer_cast<parser::WhileStmnt>(stmnt);
     if (as_while_stmnt) {
@@ -313,9 +349,9 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
             throw handle_error(as_while_stmnt->start, "Expression inside of while statement must evaluate to a bool type.");
         }
         current_function_scopes.emplace_back();
-        scope(as_while_stmnt->to_run);
+        auto ret_type = scope(as_while_stmnt->to_run); // This would have to return on the first loop always.
         current_function_scopes.pop_back();
-        return {};
+        return ret_type;
     }
     auto as_for_stmnt = std::dynamic_pointer_cast<parser::ForStmnt>(stmnt);
     if (as_for_stmnt) {
@@ -333,9 +369,9 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         }
         current_function_scopes.emplace_back();
         current_function_scopes.back()[looper_name.raw] = std::make_shared<MemberDefinition>(looper_type, looper_name, std::optional<std::shared_ptr<parser::Expr>>(), false, false, false);
-        scope(as_for_stmnt->to_run);
+        auto ret_type = scope(as_for_stmnt->to_run);
         current_function_scopes.pop_back();
-        return {};
+        return ret_type;
     }
     throw std::exception();
 }
@@ -506,8 +542,8 @@ auto cblang::compiler::StaticAnalyzer::assert_function_exists(const scanner::Tok
 }
 
 auto cblang::compiler::StaticAnalyzer::assert_var_exists(const scanner::Token& name) const -> std::shared_ptr<MemberDefinition> {
-    for (unsigned long i = current_function_scopes.size() - 1; i >= 0; i--) {
-        const auto& scope = current_function_scopes[i];
+    for (auto rit = current_function_scopes.rbegin(); rit != current_function_scopes.rend(); rit++) {
+        const auto& scope = *rit;
         if (!scope.contains(name.raw)) {
             continue;
         }

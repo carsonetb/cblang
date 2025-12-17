@@ -51,8 +51,9 @@ namespace cblang::parser {
     };
 
     struct Return : Statement {
-        Return(std::shared_ptr<Expr> expr) : return_expression(std::move(expr)) {}
+        Return(scanner::Token p_keyword, std::shared_ptr<Expr> expr) : ret_kw_point(std::move(p_keyword)), return_expression(std::move(expr)) {}
 
+        scanner::Token ret_kw_point;
         std::shared_ptr<Expr> return_expression;
     };
 
