@@ -1,10 +1,9 @@
 class Main (int alpha, string beta) = (
-    const int x = 0,
-    scope func -> string = {
-        return 2;
+    scope string_ret -> string = {
+        return "hello";
     },
-    class Sub<T, U> (int alpha2, char beta2) = (
-
-    )//,
-    // Sub v = Sub(1, 'd')
+    
+    scope func -> string = {
+        return string_ret();
+    }
 ) 

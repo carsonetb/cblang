@@ -233,7 +233,7 @@ auto cblang::parser::Parser::members() -> std::vector<std::shared_ptr<Declaratio
             decl = class_decl();
         }
         else {
-            throw handle_error(peek(), "Expected a declaration (variable, scope, or class).");
+            throw handle_error(peek(), "Expected a declaration after ',' (variable, scope, or class).");
         }
         out.push_back(decl);
         if (!match({COMMA})) {
@@ -531,6 +531,9 @@ auto cblang::parser::Parser::is_at_end(const int& ahead) const -> bool {
 }
 
 auto cblang::parser::Parser::peek(const int& ahead) const -> scanner::Token {
+    if (current + ahead - 1 >= tokens.size()) {
+        return tokens.back();
+    }
     return tokens.at(current + ahead - 1);
 }
 

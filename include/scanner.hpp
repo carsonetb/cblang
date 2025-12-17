@@ -119,7 +119,7 @@ namespace cblang::scanner {
 
             int start = 0;
             int current = 0;
-            int line = 0;
+            int line = 1;
 
             static const std::unordered_map<std::string, TokenType> keywords;
 

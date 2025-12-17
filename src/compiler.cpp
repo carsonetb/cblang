@@ -191,14 +191,26 @@ auto cblang::compiler::StaticAnalyzer::init_members(const std::shared_ptr<UserDe
         if (*initializer->evaluates_to.value() != *member->type) {
             throw handle_error(member->name, "(during static analysis) Initializer expression doesn't evaluate to the same type as the variable.");
         }
+        scope[member->name.raw] = member;
+    }
+
+    // First register all non-static member functions.
+    for (const auto& member : definition->members) {
+        auto as_function = std::dynamic_pointer_cast<FunctionMember>(member);
+        if (as_function && !as_function->is_static) {
+            if (scope.contains(as_function->function_name.raw)) {
+                throw handle_error(as_function->function_name, "(during static analysis) A function with this name already exists.");
+            }
+            scope[as_function->function_name.raw] = as_function;
+        }
     }
 
     // Now check all non-static member functions.
     for (const auto& member : definition->members) {
         auto as_function = std::dynamic_pointer_cast<FunctionMember>(member);
         if (as_function && !as_function->is_static) {
+            scope[as_function->function_name.raw] = as_function;
             function(as_function);
-            continue;
         }
     }
 }
