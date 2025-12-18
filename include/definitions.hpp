@@ -81,13 +81,24 @@ namespace cblang::definitions {
                 bool p_is_cast
             );
 
+            FunctionMember(
+                const std::shared_ptr<parser::Templated>& p_name,
+                std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
+                std::optional<std::shared_ptr<TemplatedType>> p_returns,
+                bool p_is_static,
+                bool p_is_private,
+                bool p_is_const,
+                bool p_is_operator,
+                bool p_is_cast
+            );
+
             scanner::Token function_name;
             std::shared_ptr<parser::Templated> templated_name;
             std::vector<std::shared_ptr<MemberDefinition>> parameters;
             std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>> templates_by_name;
             std::vector<std::shared_ptr<TemplateDefinition>> templates;
             std::optional<std::shared_ptr<TemplatedType>> returns;
-            std::vector<std::shared_ptr<parser::Statement>> code;
+            std::optional<std::vector<std::shared_ptr<parser::Statement>>> code;
 
             bool is_operator;
             bool is_cast;

@@ -211,7 +211,16 @@ auto cblang::definitions::BoolDefinition::can_convert_to(const std::shared_ptr<C
     return def->pretty_name == "int";
 }
 
-cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition(TEMPLATED_EMPTY("int"), {}, {}) {};
+cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition(TEMPLATED_EMPTY("int"), {}, {}) {
+    // auto equal_equal_oper = std::make_shared<FunctionMember>( // TODO: Clean this up
+    //     std::make_shared<parser::Templated>(scanner::Token(scanner::IDENTIFIER, "==", -1), std::vector<std::shared_ptr<parser::Templated>>()),
+    //     std::vector<std::shared_ptr<MemberDefinition>>{
+    //         std::make_shared<MemberDefinition>(
+    //             std::shared_ptr<TemplatedType>(std::make_shared<IntDefinition>())
+    //         )
+    //     }
+    // )
+};
 
 auto cblang::definitions::IntDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return def->pretty_name == "char" || def->pretty_name == "bool" || def->pretty_name == "string";

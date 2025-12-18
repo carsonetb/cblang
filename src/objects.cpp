@@ -57,7 +57,7 @@ auto cblang::objects::Object::initialize() -> void {
                 as_function->function_name, 
                 std::make_shared<FunctionObject>(
                     as_function, 
-                    as_function->code,
+                    as_function->code.value(),
                     as_function->is_cast,
                     as_function->is_operator,
                     as_function->is_const,
@@ -106,7 +106,7 @@ auto cblang::objects::Object::get_var(const scanner::Token& variable_name) const
 }
 
 auto cblang::objects::Object::get_scope() -> std::shared_ptr<program::Scope> {
-    auto out = std::make_shared<program::Scope>();
+    auto out = std::make_shared<program::Scope>(shared_from_this());
     out->defined_variables = members_by_name;
     out->defined_templates = defined_templates;
     out->scope_object = shared_from_this();
@@ -254,7 +254,7 @@ cblang::objects::FunctionObject::FunctionObject(
 
 auto cblang::objects::FunctionObject::call_this(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>> {
     auto owner = owner_scope.back()->scope_object;
-    auto call_scope = std::make_shared<program::Scope>();
+    auto call_scope = std::make_shared<program::Scope>(owner);
     call_scope->scope_object = owner;
     owner_scope.push_back(call_scope);
 
@@ -304,11 +304,9 @@ cblang::objects::StringObject::StringObject(std::string p_value) : Object(std::m
 cblang::objects::ArrayObject::ArrayObject(std::vector<std::shared_ptr<Object>> p_value, std::shared_ptr<definitions::TemplateDefinition> value_type) 
     : Object(
         std::make_shared<definitions::ArrayDefinition>(), 
-        {
-            std::move(value_type)
-        }, 
+        {}, 
         {}
     ), value(std::move(p_value)) 
 {
-
+    defined_templates["value_type"] = std::move(value_type);
 }

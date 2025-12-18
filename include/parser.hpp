@@ -284,6 +284,7 @@ namespace cblang::parser {
         private:
             std::vector<scanner::Token> tokens;
             int current = 0;
+            bool invalid = false;
 
             auto match(const std::vector<scanner::TokenType>& types) -> bool;
             auto advance() -> scanner::Token;

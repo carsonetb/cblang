@@ -22,6 +22,8 @@ namespace cblang::program {
     };
 
     struct Scope {
+        Scope(std::shared_ptr<objects::Object> p_scope_object) : scope_object(std::move(p_scope_object)) {}
+
         std::unordered_map<std::string, std::shared_ptr<objects::Variable>> defined_variables;
         std::unordered_map<std::string, std::shared_ptr<definitions::TemplateDefinition>> defined_templates;
         std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes;
@@ -52,6 +54,7 @@ namespace cblang::program {
             static auto construct_literal(const scanner::Token& token) -> std::shared_ptr<objects::Object>;
             static auto unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
             static auto binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
+            auto process_scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> std::optional<std::shared_ptr<objects::Object>>;
             auto statement(const std::shared_ptr<parser::Statement>& statement) -> std::optional<std::shared_ptr<objects::Object>>;
             auto expression(const std::shared_ptr<parser::Expr>& expr) -> std::shared_ptr<objects::Object>;
             auto accessible(const std::shared_ptr<parser::Accessible>& var, std::optional<std::shared_ptr<objects::Object>> call_on = {}, bool must_evaluate = false) -> std::optional<std::shared_ptr<objects::Object>>;

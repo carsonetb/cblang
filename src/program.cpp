@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <vector>
 
+#define PUSH_EMPTY_SCOPE scope.push_back(std::make_shared<program::Scope>(scope.back()->scope_object))
+
 using namespace cblang;
 using namespace cblang::program;
 
@@ -113,13 +115,7 @@ auto cblang::program::ScopeParser::process() -> std::optional<std::shared_ptr<ob
     if (!code) {
         throw std::runtime_error("Can't call process without code.");
     }
-    for (const auto& line : code.value()) {
-        auto out = statement(line);
-        if (out) {
-            return out;
-        }
-    }
-    return {};
+    return process_scope(code.value());
 }
 
 auto cblang::program::ScopeParser::process_expr() -> std::shared_ptr<objects::Object> {
@@ -129,38 +125,91 @@ auto cblang::program::ScopeParser::process_expr() -> std::shared_ptr<objects::Ob
     return expression(parse_expr.value());
 }
 
-auto cblang::program::ScopeParser::statement(const std::shared_ptr<parser::Statement>& statement) -> std::optional<std::shared_ptr<objects::Object>> {
-    auto as_expression = std::dynamic_pointer_cast<parser::Expr>(statement);
+auto cblang::program::ScopeParser::process_scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> std::optional<std::shared_ptr<objects::Object>> {
+    for (const auto& stmnt : statements) {
+        auto ret = statement(stmnt);
+        if (ret) {
+            return ret;
+        }
+    }
+    return {};
+}
+
+auto cblang::program::ScopeParser::statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<objects::Object>> {
+    auto as_expression = std::dynamic_pointer_cast<parser::Expr>(stmnt);
     if (as_expression) {
         expression(as_expression);
         return {};
     }
-    auto as_set_var = std::dynamic_pointer_cast<parser::SetVar>(statement);
+    auto as_set_var = std::dynamic_pointer_cast<parser::SetVar>(stmnt);
     if (as_set_var) {
         set_var(as_set_var);
         return {};
     }
-    auto as_create_var = std::dynamic_pointer_cast<parser::CreateVar>(statement);
+    auto as_create_var = std::dynamic_pointer_cast<parser::CreateVar>(stmnt);
     if (as_create_var) {
         create_var(as_create_var);
         return {};
     }
-    auto as_return = std::dynamic_pointer_cast<parser::Return>(statement);
+    auto as_return = std::dynamic_pointer_cast<parser::Return>(stmnt);
     if (as_return) {
         return expression(as_return->return_expression);
     }
     // TODO: Fix
-    auto as_function = std::dynamic_pointer_cast<parser::Function>(statement);
+    auto as_function = std::dynamic_pointer_cast<parser::Function>(stmnt);
     if (as_function) {
         throw program::handle_error(as_function->templated_name->name, "Function declaration not allowed in code scope.");
     }
-    auto as_variable = std::dynamic_pointer_cast<parser::Variable>(statement);
+    auto as_variable = std::dynamic_pointer_cast<parser::Variable>(stmnt);
     if (as_variable) {
         throw program::handle_error(as_variable->name, "(please report) Member variable declaration in code scope.");
     }
-    auto as_class = std::dynamic_pointer_cast<parser::Class>(statement);
+    auto as_class = std::dynamic_pointer_cast<parser::Class>(stmnt);
     if (as_class) {
         throw program::handle_error(as_class->name->name, "Class declaration not allowed in code scope.");
+    }
+    auto as_if_stmnt = std::dynamic_pointer_cast<parser::IfStmnt>(stmnt);
+    if (as_if_stmnt) {
+        auto eval = std::dynamic_pointer_cast<objects::BoolObject>(expression(as_if_stmnt->check_expression));
+        if (eval->value) {
+            PUSH_EMPTY_SCOPE;
+            auto out = process_scope(as_if_stmnt->to_run);
+            scope.pop_back();
+            return out;
+        }
+        if (as_if_stmnt->elif_following) {
+            return statement(as_if_stmnt->elif_following.value());
+        }
+        if (as_if_stmnt->else_following) {
+            PUSH_EMPTY_SCOPE; 
+            auto out = process_scope(as_if_stmnt->else_following.value()->to_run);
+            scope.pop_back();
+            return out;
+        }
+    }
+    auto as_while_stmnt = std::dynamic_pointer_cast<parser::WhileStmnt>(stmnt);
+    if (as_while_stmnt) {
+        while (std::dynamic_pointer_cast<objects::BoolObject>(expression(as_while_stmnt->check_expression))) {
+            PUSH_EMPTY_SCOPE;
+            auto ret = process_scope(as_while_stmnt->to_run);
+            scope.pop_back();
+            if (ret) {
+                return ret;
+            }
+        }
+    }
+    auto as_for_stmnt = std::dynamic_pointer_cast<parser::ForStmnt>(stmnt);
+    if (as_for_stmnt) {
+        auto looped = std::dynamic_pointer_cast<objects::ArrayObject>(expression(as_for_stmnt->looped));
+        scanner::Token looper_name = as_for_stmnt->looper.second;
+        std::shared_ptr<definitions::TemplatedType> looper_type = looped->defined_templates.at("value_type")->template_used.value();
+        for (const auto& object : looped->value) { // Maybe should do some runtime static type checks? Doesn't seem so necessary.
+            auto for_scope = std::make_shared<Scope>(scope.back()->scope_object);
+            for_scope->defined_variables[looper_name.raw] = std::make_shared<objects::Variable>(looper_name, object, false, false, false);
+            scope.push_back(for_scope);
+            process_scope(as_for_stmnt->to_run);
+            scope.pop_back();
+        }
     }
     return {};
 }
@@ -233,7 +282,7 @@ auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Acce
         }
         scanner::Token name_token = as_call_expr->name->name;
         auto out = call_on.value()->call(name_token.raw, name_token, templates, arguments); // TODO: Function call stack.
-        if (!out.value() && must_evaluate) {
+        if (!out.has_value() && must_evaluate) {
             throw handle_error(name_token, "Function must return a value.");
         }
         return out;

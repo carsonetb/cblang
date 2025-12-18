@@ -42,7 +42,11 @@ cblang::parser::Parser::Parser(std::vector<scanner::Token> p_tokens) : tokens(st
 auto cblang::parser::Parser::parse() -> std::optional<std::shared_ptr<ParsedProgram>> {
     logger->debug("Parser started.");
     try {
-        return program();
+        auto out = program();
+        if (invalid) {
+            return {};
+        }
+        return out;
     }
     catch (ParseException exception) {
         return {};
@@ -253,6 +257,7 @@ auto cblang::parser::Parser::scope() -> std::vector<std::shared_ptr<Statement>> 
             consume(SEMICOLON, "Expected ';' after statement.");
         }
         catch (ParseException exception) {
+            invalid = true;
             synchronize();
         }
     }
@@ -285,11 +290,21 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
         if (match({RETURN_KW})) {
             return std::make_shared<Return>(previous(), expression());
         }
+        if (match({IF_KW})) {
+            return if_stmnt();
+        }
+        if (match({WHILE_KW})) {
+            return while_stmnt();
+        }
+        if (match({FOR_KW})) {
+            return for_stmnt();
+        }
         return expression();
     }
     catch (ParseException exception) {
+        invalid = true;
         synchronize();
-        return nullptr;
+        return nullptr; // TODO: We don't like nullptrs.
     }
     // throw handle_error(peek(), "Expected expression, variable set, variable create, function create, scope init, or return.");
 }
