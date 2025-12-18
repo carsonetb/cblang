@@ -7,6 +7,7 @@
 #include "util.hpp"
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -212,14 +213,35 @@ auto cblang::definitions::BoolDefinition::can_convert_to(const std::shared_ptr<C
 }
 
 cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition(TEMPLATED_EMPTY("int"), {}, {}) {
-    // auto equal_equal_oper = std::make_shared<FunctionMember>( // TODO: Clean this up
-    //     std::make_shared<parser::Templated>(scanner::Token(scanner::IDENTIFIER, "==", -1), std::vector<std::shared_ptr<parser::Templated>>()),
-    //     std::vector<std::shared_ptr<MemberDefinition>>{
-    //         std::make_shared<MemberDefinition>(
-    //             std::shared_ptr<TemplatedType>(std::make_shared<IntDefinition>())
-    //         )
-    //     }
-    // )
+    auto eq_eq_oper = FunctionMember::generate(
+        parser::Templated::generate(scanner::Token::create_external("=="), {}),
+        {
+            MemberDefinition::generate(
+                TemplatedType::generate(std::make_shared<IntDefinition>(), {}), 
+                scanner::Token::create_external("other"), 
+                {}, false, false, true
+            )
+        },
+        TemplatedType::generate(std::make_shared<BoolDefinition>(), {}),
+        false, false, true, true, false
+    );
+    members.push_back(eq_eq_oper);
+    members_by_name["=="] = eq_eq_oper;
+
+    auto not_eq_oper = FunctionMember::generate(
+        parser::Templated::generate(scanner::Token::create_external("!="), {}),
+        {
+            MemberDefinition::generate(
+                TemplatedType::generate(std::make_shared<IntDefinition>(), {}), 
+                scanner::Token::create_external("other"), 
+                {}, false, false, true
+            )
+        },
+        TemplatedType::generate(std::make_shared<BoolDefinition>(), {}),
+        false, false, true, true, false
+    );
+    members.push_back(not_eq_oper);
+    members_by_name["!="] = not_eq_oper;
 };
 
 auto cblang::definitions::IntDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
@@ -260,15 +282,36 @@ auto cblang::definitions::StringDefinition::can_convert_to(const std::shared_ptr
     return def->pretty_name == "array<char>";
 }
 
-cblang::definitions::ArrayDefinition::ArrayDefinition() : ClassDefinition(
-    std::make_shared<parser::Templated>(
-        scanner::Token(scanner::IDENTIFIER, "array", -1), 
-        std::vector<std::shared_ptr<parser::Templated>>{
-            TEMPLATED_EMPTY("value_type")
-        }
+cblang::definitions::ArrayDefinition::ArrayDefinition(
+    std::shared_ptr<TemplateDefinition> p_value_type
+) : ClassDefinition(
+        parser::Templated::generate(
+            scanner::Token(scanner::IDENTIFIER, "array", -1), 
+            {
+                TEMPLATED_EMPTY("value_type")
+            }
+        ),
+        {}, {}
     ),
-    {}, {}
-) {} //ClassDefinition("array<value_type>", {}, {}, {std::make_shared<TemplateDefinition>("value_type")}) {}
+    value_type(std::move(p_value_type))
+{
+    if (!value_type->template_used.has_value()) {
+        return; // This class definition will be "empty" because a template type wasn't supplied.
+    }
+    
+    auto append = FunctionMember::generate(
+        parser::Templated::generate(scanner::Token::create_external("append"), {}),
+        {
+            MemberDefinition::generate(
+                value_type->template_used.value(),
+                scanner::Token::create_external("to_append"),
+                {}, false, false, true
+            )
+        },
+        {},
+        false, false, false, false, false
+    );
+} //ClassDefinition("array<value_type>", {}, {}, {std::make_shared<TemplateDefinition>("value_type")}) {}
 
 cblang::definitions::FunctionDefinition::FunctionDefinition() : ClassDefinition(TEMPLATED_EMPTY("scope"), {}, {}) {}
 

@@ -237,13 +237,15 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
     }
     auto as_scope_expr = std::dynamic_pointer_cast<parser::ScopeExpr>(expr);
     if (as_scope_expr) {
-        return std::make_shared<objects::FunctionObject>(
+        auto out = std::make_shared<objects::FunctionObject>(
             as_scope_expr->declare_point, 
             std::vector<std::shared_ptr<definitions::MemberDefinition>>(), 
             std::vector<std::shared_ptr<definitions::TemplateDefinition>>(),
             std::optional<std::shared_ptr<definitions::TemplatedType>>(),
             as_scope_expr->statements
         );
+        out->initialize();
+        return out;
     }
     auto as_array_expr = std::dynamic_pointer_cast<parser::ArrayExpr>(expr);
     if (as_array_expr) {
@@ -251,8 +253,9 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
         for (const auto& inner_expr : as_array_expr->items) {
             array_objects.push_back(expression(inner_expr));
         }
-        // TODO: Add checks to make sure these variables exist.
-        return std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(as_array_expr->evaluates_to.value()->templates[0]));
+        auto out = std::make_shared<objects::ArrayObject>(array_objects, std::make_shared<definitions::TemplateDefinition>(as_array_expr->evaluates_to.value()->templates[0]));
+        out->initialize();
+        return out;
     }
     auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
     if (as_accessible) {

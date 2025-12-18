@@ -255,7 +255,7 @@ auto cblang::compiler::StaticAnalyzer::function(const std::shared_ptr<FunctionMe
     function_returns = func->returns;
     bool all_paths_return = false;
 
-    for (const auto& stmnt : func->code) {
+    for (const auto& stmnt : func->code.value()) {
         if (statement(stmnt).has_value()) { // Break because all return types have satisfied.
             all_paths_return = true;
             break;
@@ -462,7 +462,7 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
         if (!contained_type) {
             throw handle_error(as_array_expr->start_point, "(during static analysis) Cannot deduce type of empty array, use array<type>() constructor instead.");
         }
-        as_array_expr->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<ArrayDefinition>(), std::vector<std::shared_ptr<TemplatedType>>({contained_type}));
+        as_array_expr->evaluates_to = TemplatedType::generate(std::make_shared<ArrayDefinition>(contained_type), {contained_type});
         return;
     }
     auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);

@@ -16,6 +16,10 @@ namespace cblang::parser {
     class ElseStmnt;
 
     struct Templated {
+        static auto generate(scanner::Token p_name, std::vector<std::shared_ptr<Templated>> p_templates) -> std::shared_ptr<Templated> {
+            return std::make_shared<Templated>(p_name, p_templates);
+        }
+
         Templated(
             scanner::Token p_name,
             std::vector<std::shared_ptr<Templated>> p_templates

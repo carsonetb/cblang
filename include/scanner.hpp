@@ -93,6 +93,10 @@ namespace cblang::scanner {
     }
 
     struct Token {
+        static auto create_external(const std::string& raw) -> scanner::Token {
+            return {IDENTIFIER, raw, -1};
+        }
+
         Token(TokenType p_type, std::string p_raw, int p_line) : type(p_type), raw(std::move(p_raw)), line(p_line) {}
         Token(TokenType p_type, std::string p_raw, int p_line, std::shared_ptr<Literal> p_literal) : type(p_type), raw(std::move(p_raw)), line(p_line), literal(std::move(p_literal)) {}
 

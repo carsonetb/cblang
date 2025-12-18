@@ -33,7 +33,7 @@ namespace cblang::compiler {
                 {"int", std::make_shared<IntDefinition>()},
                 {"char", std::make_shared<CharDefinition>()},
                 {"string", std::make_shared<StringDefinition>()},
-                {"array", std::make_shared<ArrayDefinition>()},
+                {"array", std::make_shared<ArrayDefinition>(std::make_shared<TemplateDefinition>("value_type"))},
             };
 
             std::shared_ptr<parser::ParsedProgram> source;

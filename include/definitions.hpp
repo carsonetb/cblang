@@ -29,6 +29,13 @@ namespace cblang::definitions {
     };
 
     struct TemplatedType {
+        static auto generate(
+            std::shared_ptr<ClassDefinition> p_cls,
+            std::vector<std::shared_ptr<TemplatedType>> p_templates
+        ) -> std::shared_ptr<TemplatedType> {
+            return std::make_shared<TemplatedType>(p_cls, p_templates);
+        }
+
         TemplatedType(
             std::shared_ptr<ClassDefinition> p_cls,
             std::vector<std::shared_ptr<TemplatedType>> p_templates
@@ -48,6 +55,17 @@ namespace cblang::definitions {
 
     class MemberDefinition {
         public:
+            static auto generate(
+                std::shared_ptr<TemplatedType> type,
+                scanner::Token name,
+                std::optional<std::shared_ptr<parser::Expr>> initializer,
+                bool p_is_static,
+                bool p_is_private,
+                bool p_is_const
+            ) -> std::shared_ptr<MemberDefinition> {
+                return std::make_shared<MemberDefinition>(type, name, initializer, p_is_static, p_is_private, p_is_const);
+            }
+
             MemberDefinition(
                 std::shared_ptr<TemplatedType> type,
                 scanner::Token name,
@@ -69,6 +87,19 @@ namespace cblang::definitions {
 
     class FunctionMember : public MemberDefinition {
         public:
+            static auto generate(
+                const std::shared_ptr<parser::Templated>& p_name,
+                const std::vector<std::shared_ptr<MemberDefinition>>& p_parameters,
+                const std::optional<std::shared_ptr<TemplatedType>>& p_returns,
+                bool p_is_static,
+                bool p_is_private,
+                bool p_is_const,
+                bool p_is_operator,
+                bool p_is_cast
+            ) -> std::shared_ptr<FunctionMember> {
+                return std::make_shared<FunctionMember>(p_name, p_parameters, p_returns, p_is_static, p_is_private, p_is_const, p_is_operator, p_is_cast);
+            }
+
             FunctionMember(
                 const std::shared_ptr<parser::Templated>& p_name,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
@@ -128,6 +159,7 @@ namespace cblang::definitions {
             virtual auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool;
             virtual auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool;
             [[nodiscard]] auto get_functions() const -> std::vector<std::shared_ptr<FunctionMember>>;
+            [[nodiscard]] auto get_function(std::string name) -> std::shared_ptr<FunctionMember>;
     };
 
     class UserDefinition : public ClassDefinition, public std::enable_shared_from_this<UserDefinition> {
@@ -185,7 +217,10 @@ namespace cblang::definitions {
 
     class ArrayDefinition : public ClassDefinition {
         public:
-            ArrayDefinition();
+            ArrayDefinition(std::shared_ptr<TemplateDefinition> p_value_type);
+        
+        private:
+            std::shared_ptr<TemplateDefinition> value_type;
     };
 
     class FunctionDefinition : public ClassDefinition {

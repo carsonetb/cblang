@@ -20,6 +20,10 @@ namespace cblang::objects {
 
     class Variable {
         public:
+            static auto generate(scanner::Token p_name, std::shared_ptr<objects::Object> p_object, bool p_is_private, bool p_is_static, bool p_is_const) -> std::shared_ptr<Variable> {
+                return std::make_shared<Variable>(p_name, p_object, p_is_private, p_is_static, p_is_const);
+            }
+
             Variable(scanner::Token p_name, std::shared_ptr<objects::Object> p_object, bool p_is_private, bool p_is_static, bool p_is_const);
 
             scanner::Token name;
@@ -52,7 +56,7 @@ namespace cblang::objects {
             [[nodiscard]] auto get_template_array() const -> std::vector<std::shared_ptr<TemplateDefinition>>;
     };
     
-    using InternalFunction = std::function<std::optional<std::shared_ptr<Object>>(std::vector<std::shared_ptr<TemplateDefinition>>, std::vector<std::shared_ptr<Object>>)>;
+    using InternalFunction = std::function<std::optional<std::shared_ptr<Object>>(const std::vector<std::shared_ptr<TemplateDefinition>>&, const std::vector<std::shared_ptr<Object>>&)>;
 
     class Callable : public Object {
         public:
@@ -73,6 +77,17 @@ namespace cblang::objects {
 
     class FunctionObject : public Callable {
         public:
+            static auto generate(
+                const std::shared_ptr<FunctionMember>& definition,
+                InternalFunction p_internal,
+                bool p_is_cast = false,
+                bool p_is_operator = false,
+                bool p_is_const = false,
+                bool p_is_static = false
+            ) -> std::shared_ptr<FunctionObject> {
+                return std::make_shared<FunctionObject>(definition, p_internal, p_is_static, p_is_operator, p_is_const, p_is_static);
+            }
+
             FunctionObject(
                 const std::shared_ptr<FunctionMember>& p_definition,
                 std::vector<std::shared_ptr<parser::Statement>> p_code,
