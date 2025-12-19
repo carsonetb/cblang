@@ -400,7 +400,18 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
     }
     auto as_logical = std::dynamic_pointer_cast<parser::Logical>(expr);
     if (as_logical) {
-        as_logical->evaluates_to = binary(as_logical->left, as_logical->op, as_logical->right);
+        as_logical->evaluates_to = TemplatedType::generate(BoolDefinition::generate(), {});
+        expression(as_logical->left);
+        expression(as_logical->right);
+        assert(as_logical->left->evaluates_to.has_value());
+        assert(as_logical->right->evaluates_to.has_value());
+        // TODO: Check if type can be casted.
+        if (!std::dynamic_pointer_cast<BoolDefinition>(as_logical->left->evaluates_to.value()->cls)) {
+            throw handle_error(as_logical->op, "Left expression does not evaluate to type bool.");
+        }
+        if (!std::dynamic_pointer_cast<BoolDefinition>(as_logical->right->evaluates_to.value()->cls)) {
+            throw handle_error(as_logical->op, "Right expression does not evaluate to type bool.");
+        }
         return;
     }
     auto as_grouping = std::dynamic_pointer_cast<parser::Grouping>(expr);

@@ -1,7 +1,5 @@
 #include "cblang.hpp"
-#include "definitions.hpp"
 #include "objects.hpp"
-#include "program.hpp"
 #include "scanner.hpp"
 #include <fstream>
 #include <iostream>
@@ -36,7 +34,7 @@ auto main(int argc, char *argv[]) -> int {
         if (!obj) {
             return 1;
         }
-        auto ret = obj.value()->call("fibbonacci", cblang::scanner::Token::create_external("<ext>"), {}, {std::make_shared<cblang::objects::IntObject>(5)});
+        auto ret = obj.value()->call("fibbonacci", cblang::scanner::Token::create_external("<ext>"), {}, {std::make_shared<cblang::objects::IntObject>(0)});
         if (ret) {
             auto as_string = std::dynamic_pointer_cast<cblang::objects::IntObject>(ret.value());
             std::cout << as_string->value << "\n";
