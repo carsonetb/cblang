@@ -15,6 +15,26 @@
 using namespace cblang::definitions;
 
 static const auto CLASS_TYPE = std::make_shared<TemplatedType>(std::make_shared<ClassDefinition>(TEMPLATED_EMPTY("class"), std::vector<std::shared_ptr<MemberDefinition>>(), std::vector<std::shared_ptr<MemberDefinition>>()), std::vector<std::shared_ptr<TemplatedType>>());
+static const auto BOOL_DEF = std::make_shared<BoolDefinition>();
+static const auto INT_DEF = std::make_shared<IntDefinition>();
+static const auto FLOAT_DEF = std::make_shared<FloatDefinition>();
+static const auto STRING_DEF = std::make_shared<StringDefinition>();
+
+template <typename OtherT>
+static auto define_operator(const std::string& name, const std::shared_ptr<ClassDefinition>& ret_type) { // BoolDefinition is required to prevent recursive instantiation.
+    return FunctionMember::generate(
+        cblang::parser::Templated::generate(cblang::scanner::Token::create_external(name), {}),
+        {
+            MemberDefinition::generate(
+                TemplatedType::generate(std::make_shared<OtherT>(), {}),
+                cblang::scanner::Token::create_external("other"),
+                {}, false, false, true
+            )
+        },
+        TemplatedType::generate(ret_type, {}),
+        false, false, true, true, false
+    );
+}
 
 auto cblang::definitions::TemplatedType::operator==(const TemplatedType& rhs) const -> bool {
     if (cls->name.raw != rhs.cls->name.raw) {
@@ -69,7 +89,7 @@ cblang::definitions::FunctionMember::FunctionMember(
     const std::shared_ptr<parser::Templated>& p_name, 
     std::vector<std::shared_ptr<MemberDefinition>> p_parameters, 
     std::optional<std::shared_ptr<TemplatedType>> p_returns,
-    std::vector<std::shared_ptr<parser::Statement>> p_code,
+    std::optional<std::vector<std::shared_ptr<parser::Statement>>> p_code,
     bool p_is_static,
     bool p_is_private,
     bool p_is_const,
@@ -166,6 +186,13 @@ auto cblang::definitions::ClassDefinition::get_functions() const -> std::vector<
     return out;
 }
 
+auto cblang::definitions::ClassDefinition::get_function(const std::string& name) const -> std::shared_ptr<FunctionMember> {
+    if (!members_by_name.contains(name)) {
+        throw std::runtime_error("Invalid name.");
+    }
+    return std::dynamic_pointer_cast<FunctionMember>(members_by_name.at(name));
+}
+
 auto cblang::definitions::ClassDefinition::create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::shared_ptr<objects::Object> {
     throw program::handle_error(creation_point, "Class cannot be created directly (via calling a constructor function).");
 }
@@ -202,7 +229,30 @@ auto cblang::definitions::UserDefinition::create_object(const scanner::Token& cr
     return out;
 }
 
+#define DEFINE_AND_ADD_OPERATOR(Type, type, name, ret)      \
+    if (!(type)->members_by_name.contains(name)) { \
+        auto oper = define_operator<Type>(name, ret); \
+        (type)->members.push_back(oper);           \
+        (type)->members_by_name[name] = oper;      \
+    } 
+
 cblang::definitions::BoolDefinition::BoolDefinition() : ClassDefinition(TEMPLATED_EMPTY("bool"), {}, {}) {}
+
+auto cblang::definitions::BoolDefinition::generate() -> std::shared_ptr<BoolDefinition> {
+    if (!BOOL_DEF->members_by_name.contains("==")) {
+        auto oper = define_operator<BoolDefinition>("==", BOOL_DEF);
+        BOOL_DEF->members.push_back(oper);
+        BOOL_DEF->members_by_name["=="] = oper;
+    }
+
+    if (!BOOL_DEF->members_by_name.contains("!=")) {
+        auto oper = define_operator<BoolDefinition>("!=", BOOL_DEF);
+        BOOL_DEF->members.push_back(oper);
+        BOOL_DEF->members_by_name["!="] = oper;
+    }
+
+    return BOOL_DEF;
+}
 
 auto cblang::definitions::BoolDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return def->pretty_name == "int";
@@ -212,37 +262,22 @@ auto cblang::definitions::BoolDefinition::can_convert_to(const std::shared_ptr<C
     return def->pretty_name == "int";
 }
 
-cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition(TEMPLATED_EMPTY("int"), {}, {}) {
-    auto eq_eq_oper = FunctionMember::generate(
-        parser::Templated::generate(scanner::Token::create_external("=="), {}),
-        {
-            MemberDefinition::generate(
-                TemplatedType::generate(std::make_shared<IntDefinition>(), {}), 
-                scanner::Token::create_external("other"), 
-                {}, false, false, true
-            )
-        },
-        TemplatedType::generate(std::make_shared<BoolDefinition>(), {}),
-        false, false, true, true, false
-    );
-    members.push_back(eq_eq_oper);
-    members_by_name["=="] = eq_eq_oper;
+cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition(TEMPLATED_EMPTY("int"), {}, {}) {};
 
-    auto not_eq_oper = FunctionMember::generate(
-        parser::Templated::generate(scanner::Token::create_external("!="), {}),
-        {
-            MemberDefinition::generate(
-                TemplatedType::generate(std::make_shared<IntDefinition>(), {}), 
-                scanner::Token::create_external("other"), 
-                {}, false, false, true
-            )
-        },
-        TemplatedType::generate(std::make_shared<BoolDefinition>(), {}),
-        false, false, true, true, false
-    );
-    members.push_back(not_eq_oper);
-    members_by_name["!="] = not_eq_oper;
-};
+auto cblang::definitions::IntDefinition::generate() -> std::shared_ptr<IntDefinition> {
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "==", BOOL_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "!=", BOOL_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "+", INT_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "-", INT_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "*", INT_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "/", INT_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "<", BOOL_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, ">", BOOL_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, "<=", BOOL_DEF);
+    DEFINE_AND_ADD_OPERATOR(IntDefinition, INT_DEF, ">=", BOOL_DEF);
+
+    return INT_DEF;
+}
 
 auto cblang::definitions::IntDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return def->pretty_name == "char" || def->pretty_name == "bool" || def->pretty_name == "string";
@@ -254,6 +289,24 @@ auto cblang::definitions::IntDefinition::can_convert_to(const std::shared_ptr<Cl
 
 cblang::definitions::FloatDefinition::FloatDefinition() : ClassDefinition(TEMPLATED_EMPTY("float"), {}, {}) {}
 
+auto cblang::definitions::FloatDefinition::generate() -> std::shared_ptr<FloatDefinition> {
+    static auto generated = std::make_shared<FloatDefinition>();
+
+    if (!generated->members_by_name.contains("==")) {
+        auto oper = define_operator<FloatDefinition>("==", BoolDefinition::generate());
+        generated->members.push_back(oper);
+        generated->members_by_name["=="] = oper;
+    }
+
+    if (!generated->members_by_name.contains("!=")) {
+        auto oper = define_operator<FloatDefinition>("!=", BoolDefinition::generate());
+        generated->members.push_back(oper);
+        generated->members_by_name["!="] = oper;
+    }
+
+    return generated;
+}
+
 auto cblang::definitions::FloatDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return false;
 }
@@ -264,6 +317,24 @@ auto cblang::definitions::FloatDefinition::can_convert_to(const std::shared_ptr<
 
 cblang::definitions::CharDefinition::CharDefinition() : ClassDefinition(TEMPLATED_EMPTY("char"), {}, {}) {}
 
+auto cblang::definitions::CharDefinition::generate() -> std::shared_ptr<CharDefinition> {
+    static auto generated = std::make_shared<CharDefinition>();
+
+    if (!generated->members_by_name.contains("==")) {
+        auto oper = define_operator<CharDefinition>("==", BoolDefinition::generate());
+        generated->members.push_back(oper);
+        generated->members_by_name["=="] = oper;
+    }
+
+    if (!generated->members_by_name.contains("!=")) {
+        auto oper = define_operator<CharDefinition>("!=", BoolDefinition::generate());
+        generated->members.push_back(oper);
+        generated->members_by_name["!="] = oper;
+    }
+
+    return generated;
+}
+
 auto cblang::definitions::CharDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return def->pretty_name == "int";
 }
@@ -273,6 +344,24 @@ auto cblang::definitions::CharDefinition::can_convert_to(const std::shared_ptr<C
 }
 
 cblang::definitions::StringDefinition::StringDefinition() : ClassDefinition(TEMPLATED_EMPTY("string"), {}, {}) {}
+
+auto cblang::definitions::StringDefinition::generate() -> std::shared_ptr<StringDefinition> {
+    static auto generated = std::make_shared<StringDefinition>();
+
+    if (!generated->members_by_name.contains("==")) {
+        auto oper = define_operator<StringDefinition>("==", BoolDefinition::generate());
+        generated->members.push_back(oper);
+        generated->members_by_name["=="] = oper;
+    }
+
+    if (!generated->members_by_name.contains("!=")) {
+        auto oper = define_operator<StringDefinition>("!=", BoolDefinition::generate());
+        generated->members.push_back(oper);
+        generated->members_by_name["!="] = oper;
+    }
+
+    return generated;
+}
 
 auto cblang::definitions::StringDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return def->pretty_name == "array<char>";

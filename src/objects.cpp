@@ -11,39 +11,24 @@
 #include <utility>
 #include <vector>
 
-#define INTERNAL_FUNCTION_PARAMS [this](const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
+#define GET_PARAM(Type, ind) std::dynamic_pointer_cast<Type>(params[ind])
 
-// This is horid but I can't think of a better way.
-#define LITERAL_EQUALITY_OPERATORS(ObjectType) InternalFunction eq_eq_oper = [this](const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& params) { \
-        auto other = std::dynamic_pointer_cast<ObjectType>(params[0]); \
-        return std::make_shared<BoolObject>(value == other->value); \
-    }; \
-\
-    InternalFunction not_eq_oper = [this](const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& params) { \
-        auto other = std::dynamic_pointer_cast<ObjectType>(params[0]); \
-        return std::make_shared<BoolObject>(value != other->value); \
-    }; \
-    \
-    members_by_name["=="] = Variable::generate( \
-        scanner::Token::create_external("=="), \
-        FunctionObject::generate( \
-            std::dynamic_pointer_cast<FunctionMember>(type->members_by_name["=="]), \
-            eq_eq_oper, \
-            false, true, true, false \
-        ), false, false, true \
-    ); \
-    \
-    members_by_name["!="] = Variable::generate( \
-        scanner::Token::create_external("!="), \
-        FunctionObject::generate( \
-            std::dynamic_pointer_cast<FunctionMember>(type->members_by_name["!="]), \
-            not_eq_oper, \
-            false, true, true, false \
-        ), false, false, true \
-    );
+#define INTERNAL_FUNCTION_PARAMS [this](const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
 
 using namespace cblang;
 using namespace cblang::objects;
+
+static auto create_function(const std::shared_ptr<ClassDefinition>& type, const std::string& name, const InternalFunction& func, bool is_const = false, bool is_static = false, bool is_cast = false, bool is_operator = false) {
+    return Variable::generate(
+        scanner::Token::create_external(name),
+        FunctionObject::generate(
+            std::dynamic_pointer_cast<FunctionMember>(type->members_by_name[name]),
+            func,
+            is_cast, is_operator, is_const, is_static
+        ), false, is_static, true
+    );
+}
+
 
 cblang::objects::Variable::Variable(
     scanner::Token p_name, 
@@ -220,7 +205,7 @@ auto cblang::objects::Callable::validate_call(const scanner::Token& call_point, 
             throw program::handle_error(call_point, "Function requires only " + std::to_string(parameters.size()) + " parameters.");
         }
         auto param_def = parameters[i];
-        if (param_obj->get_templated() != param_def->type) {
+        if (*param_obj->get_templated() != *param_def->type) {
             throw program::handle_error(call_point, "Passed variable of type " + param_obj->get_templated()->stringify() + " but expected type " + param_def->type->stringify() + " (param name " + param_def->name.raw + ").");
         }
         auto this_variable = std::make_shared<Variable>(param_def->name, param_obj, false, false, false);
@@ -298,6 +283,12 @@ auto cblang::objects::FunctionObject::call_this(const scanner::Token& call_point
         call_scope->defined_templates[in_template->template_name.raw] = in_template;
     }
 
+    for (int i = 0; i < passed_params.size(); i++) {
+        const auto& param_obj = passed_params[i];
+        const auto& param_def = parameters[i];
+        call_scope->defined_variables[param_def->name.raw] = Variable::generate(param_def->name, param_obj, param_def->is_private, param_def->is_static, param_def->is_const);
+    }
+
     if (internal) {
         return internal.value()(in_templates, passed_params);
     }
@@ -315,24 +306,63 @@ cblang::objects::MultipleFunctionObject::MultipleFunctionObject(
 
 }
 
-cblang::objects::BoolObject::BoolObject(bool p_value) : Object(std::make_shared<definitions::BoolDefinition>(), {}, {}), value(p_value) {
-    LITERAL_EQUALITY_OPERATORS(BoolObject);
+#define CREATE_OPERATOR(name, code) members_by_name[name] = create_function(type, name, INTERNAL_FUNCTION_PARAMS code, true, false, false, true)
+
+cblang::objects::BoolObject::BoolObject(bool p_value) : Object(BoolDefinition::generate(), {}, {}), value(p_value) {
+    CREATE_OPERATOR("==", {
+        return std::make_shared<BoolObject>(value == GET_PARAM(BoolObject, 0)->value);
+    });
+
+    CREATE_OPERATOR("!=", {
+        return std::make_shared<BoolObject>(value != GET_PARAM(BoolObject, 0)->value);
+    });
 }
 
-cblang::objects::IntObject::IntObject(int p_value) : Object(std::make_shared<definitions::IntDefinition>(), {}, {}), value(p_value) {
-    LITERAL_EQUALITY_OPERATORS(IntObject);
+cblang::objects::IntObject::IntObject(int p_value) : Object(IntDefinition::generate(), {}, {}), value(p_value) {
+    #define SIMPLE_INT_OPERATOR(RetType, oper) CREATE_OPERATOR(#oper, {return std::make_shared<RetType>(value oper GET_PARAM(IntObject, 0)->value);});
+
+    SIMPLE_INT_OPERATOR(BoolObject, ==);
+    SIMPLE_INT_OPERATOR(BoolObject, !=);
+    SIMPLE_INT_OPERATOR(IntObject, +);
+    SIMPLE_INT_OPERATOR(IntObject, -);
+    SIMPLE_INT_OPERATOR(IntObject, *);
+    SIMPLE_INT_OPERATOR(IntObject, /);
+    SIMPLE_INT_OPERATOR(BoolObject, >);
+    SIMPLE_INT_OPERATOR(BoolObject, <);
+    SIMPLE_INT_OPERATOR(BoolObject, <=);
+    SIMPLE_INT_OPERATOR(BoolObject, >=);
+
+    #undef SIMPLE_INT_OPERATOR
 }
 
 cblang::objects::FloatObject::FloatObject(float p_value) : Object(std::make_shared<definitions::FloatDefinition>(), {}, {}), value(p_value) {
-    LITERAL_EQUALITY_OPERATORS(FloatObject);
+    CREATE_OPERATOR("==", {
+        return std::make_shared<BoolObject>(value == GET_PARAM(FloatObject, 0)->value);
+    });
+
+    CREATE_OPERATOR("!=", {
+        return std::make_shared<BoolObject>(value != GET_PARAM(FloatObject, 0)->value);
+    });
 }
 
 cblang::objects::CharObject::CharObject(char p_value) : Object(std::make_shared<definitions::CharDefinition>(), {}, {}), value(p_value) {
-    LITERAL_EQUALITY_OPERATORS(CharObject);
+    CREATE_OPERATOR("==", {
+        return std::make_shared<BoolObject>(value == GET_PARAM(CharObject, 0)->value);
+    });
+
+    CREATE_OPERATOR("!=", {
+        return std::make_shared<BoolObject>(value != GET_PARAM(CharObject, 0)->value);
+    });
 }
 
-cblang::objects::StringObject::StringObject(std::string p_value) : Object(std::make_shared<definitions::StringDefinition>(), {}, {}), value(std::move(p_value)) {
-    LITERAL_EQUALITY_OPERATORS(StringObject);
+cblang::objects::StringObject::StringObject(std::string p_value) : Object(StringDefinition::generate(), {}, {}), value(std::move(p_value)) {
+    CREATE_OPERATOR("==", {
+        return std::make_shared<BoolObject>(value == GET_PARAM(StringObject, 0)->value);
+    });
+
+    CREATE_OPERATOR("!=", {
+        return std::make_shared<BoolObject>(value != GET_PARAM(StringObject, 0)->value);
+    });
 }
 
 cblang::objects::ArrayObject::ArrayObject(std::vector<std::shared_ptr<Object>> p_value, std::shared_ptr<definitions::TemplateDefinition> value_type) 
@@ -359,3 +389,5 @@ cblang::objects::ArrayObject::ArrayObject(std::vector<std::shared_ptr<Object>> p
         false, false, true
     );
 }
+
+#undef CREATE_OPERATOR

@@ -30,8 +30,8 @@ namespace cblang::definitions {
 
     struct TemplatedType {
         static auto generate(
-            std::shared_ptr<ClassDefinition> p_cls,
-            std::vector<std::shared_ptr<TemplatedType>> p_templates
+            const std::shared_ptr<ClassDefinition>& p_cls,
+            const std::vector<std::shared_ptr<TemplatedType>>& p_templates
         ) -> std::shared_ptr<TemplatedType> {
             return std::make_shared<TemplatedType>(p_cls, p_templates);
         }
@@ -56,9 +56,9 @@ namespace cblang::definitions {
     class MemberDefinition {
         public:
             static auto generate(
-                std::shared_ptr<TemplatedType> type,
-                scanner::Token name,
-                std::optional<std::shared_ptr<parser::Expr>> initializer,
+                const std::shared_ptr<TemplatedType>& type,
+                const scanner::Token& name,
+                const std::optional<std::shared_ptr<parser::Expr>>& initializer,
                 bool p_is_static,
                 bool p_is_private,
                 bool p_is_const
@@ -97,25 +97,14 @@ namespace cblang::definitions {
                 bool p_is_operator,
                 bool p_is_cast
             ) -> std::shared_ptr<FunctionMember> {
-                return std::make_shared<FunctionMember>(p_name, p_parameters, p_returns, p_is_static, p_is_private, p_is_const, p_is_operator, p_is_cast);
+                return std::make_shared<FunctionMember>(p_name, p_parameters, p_returns, std::optional<std::vector<std::shared_ptr<parser::Statement>>>(), p_is_static, p_is_private, p_is_const, p_is_operator, p_is_cast);
             }
 
             FunctionMember(
                 const std::shared_ptr<parser::Templated>& p_name,
                 std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
                 std::optional<std::shared_ptr<TemplatedType>> p_returns,
-                std::vector<std::shared_ptr<parser::Statement>> p_code,
-                bool p_is_static,
-                bool p_is_private,
-                bool p_is_const,
-                bool p_is_operator,
-                bool p_is_cast
-            );
-
-            FunctionMember(
-                const std::shared_ptr<parser::Templated>& p_name,
-                std::vector<std::shared_ptr<MemberDefinition>> p_parameters,
-                std::optional<std::shared_ptr<TemplatedType>> p_returns,
+                std::optional<std::vector<std::shared_ptr<parser::Statement>>> p_code,
                 bool p_is_static,
                 bool p_is_private,
                 bool p_is_const,
@@ -159,7 +148,7 @@ namespace cblang::definitions {
             virtual auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool;
             virtual auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool;
             [[nodiscard]] auto get_functions() const -> std::vector<std::shared_ptr<FunctionMember>>;
-            [[nodiscard]] auto get_function(std::string name) -> std::shared_ptr<FunctionMember>;
+            [[nodiscard]] auto get_function(const std::string& name) const -> std::shared_ptr<FunctionMember>;
     };
 
     class UserDefinition : public ClassDefinition, public std::enable_shared_from_this<UserDefinition> {
@@ -177,6 +166,8 @@ namespace cblang::definitions {
 
     class BoolDefinition : public ClassDefinition {
         public:
+            static auto generate() -> std::shared_ptr<BoolDefinition>;
+
             BoolDefinition();
 
             auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool override;
@@ -185,6 +176,8 @@ namespace cblang::definitions {
 
     class IntDefinition : public ClassDefinition {
         public:
+            static auto generate() -> std::shared_ptr<IntDefinition>;
+
             IntDefinition();
 
             auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool override;
@@ -193,6 +186,8 @@ namespace cblang::definitions {
 
     class FloatDefinition : public ClassDefinition {
         public:
+            static auto generate() -> std::shared_ptr<FloatDefinition>;
+
             FloatDefinition();
 
             auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool override;
@@ -201,6 +196,8 @@ namespace cblang::definitions {
 
     class CharDefinition : public ClassDefinition {
         public:
+            static auto generate() -> std::shared_ptr<CharDefinition>;
+
             CharDefinition();
 
             auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool override;
@@ -209,6 +206,8 @@ namespace cblang::definitions {
 
     class StringDefinition : public ClassDefinition {
         public:
+            static auto generate() -> std::shared_ptr<StringDefinition>;
+
             StringDefinition();
 
             auto is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool override;
@@ -230,6 +229,14 @@ namespace cblang::definitions {
 
     class TemplateDefinition {
         public:
+            static auto generate(const std::shared_ptr<TemplatedType>& p_template_used) -> std::shared_ptr<TemplateDefinition> {
+                return std::make_shared<TemplateDefinition>(p_template_used);
+            }
+
+            static auto generate(const std::string& p_name) -> std::shared_ptr<TemplateDefinition> {
+                return std::make_shared<TemplateDefinition>(scanner::Token::create_external(p_name));
+            }
+
             TemplateDefinition(scanner::Token p_template_name);
             TemplateDefinition(std::shared_ptr<TemplatedType> p_template_used);
 

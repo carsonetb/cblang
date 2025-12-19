@@ -20,7 +20,7 @@ namespace cblang::objects {
 
     class Variable {
         public:
-            static auto generate(scanner::Token p_name, std::shared_ptr<objects::Object> p_object, bool p_is_private, bool p_is_static, bool p_is_const) -> std::shared_ptr<Variable> {
+            static auto generate(const scanner::Token& p_name, const std::shared_ptr<objects::Object>& p_object, bool p_is_private, bool p_is_static, bool p_is_const) -> std::shared_ptr<Variable> {
                 return std::make_shared<Variable>(p_name, p_object, p_is_private, p_is_static, p_is_const);
             }
 
@@ -79,13 +79,13 @@ namespace cblang::objects {
         public:
             static auto generate(
                 const std::shared_ptr<FunctionMember>& definition,
-                InternalFunction p_internal,
+                const InternalFunction& p_internal,
                 bool p_is_cast = false,
                 bool p_is_operator = false,
                 bool p_is_const = false,
                 bool p_is_static = false
             ) -> std::shared_ptr<FunctionObject> {
-                return std::make_shared<FunctionObject>(definition, p_internal, p_is_static, p_is_operator, p_is_const, p_is_static);
+                return std::make_shared<FunctionObject>(definition, p_internal, p_is_cast, p_is_operator, p_is_const, p_is_static);
             }
 
             FunctionObject(

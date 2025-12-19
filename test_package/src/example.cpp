@@ -36,9 +36,9 @@ auto main(int argc, char *argv[]) -> int {
         if (!obj) {
             return 1;
         }
-        auto ret = obj.value()->call("func", cblang::scanner::Token(cblang::scanner::IDENTIFIER, "begin", -1), {}, {});
+        auto ret = obj.value()->call("fibbonacci", cblang::scanner::Token::create_external("<ext>"), {}, {std::make_shared<cblang::objects::IntObject>(5)});
         if (ret) {
-            auto as_string = std::dynamic_pointer_cast<cblang::objects::StringObject>(ret.value());
+            auto as_string = std::dynamic_pointer_cast<cblang::objects::IntObject>(ret.value());
             std::cout << as_string->value << "\n";
         }
     }

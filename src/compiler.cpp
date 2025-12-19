@@ -12,6 +12,7 @@
 #include <optional>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <ranges>
 #include <string>
 #include <sys/types.h>
 #include <vector>
@@ -344,6 +345,9 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
                 ret_type = else_ret;
             }
         }
+        if (!as_if_stmnt->elif_following.has_value() && !as_if_stmnt->else_following.has_value()) {
+            ret_type = {}; // This was the last if/elif and there is no else.
+        }
         return ret_type;
     }
     auto as_else_statement = std::dynamic_pointer_cast<parser::ElseStmnt>(stmnt);
@@ -403,6 +407,7 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
     if (as_grouping) {
         expression(as_grouping->expression);
         as_grouping->evaluates_to = as_grouping->expression->evaluates_to;
+        return;
     }
     auto as_literal = std::dynamic_pointer_cast<parser::Literal>(expr);
     if (as_literal) {
@@ -412,11 +417,11 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
         auto as_float = std::dynamic_pointer_cast<scanner::FloatLiteral>(literal);
         auto as_char = std::dynamic_pointer_cast<scanner::CharLiteral>(literal);
         auto as_string = std::dynamic_pointer_cast<scanner::StringLiteral>(literal);
-        if (as_bool) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<BoolDefinition>()); }
-        if (as_int) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<IntDefinition>()); }
-        if (as_float) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<FloatDefinition>()); }
-        if (as_char) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<CharDefinition>()); }
-        if (as_string) { as_literal->evaluates_to = std::make_shared<TemplatedType>(std::make_shared<StringDefinition>()); }
+        if (as_bool) { as_literal->evaluates_to = std::make_shared<TemplatedType>(BoolDefinition::generate()); }
+        if (as_int) { as_literal->evaluates_to = std::make_shared<TemplatedType>(IntDefinition::generate()); }
+        if (as_float) { as_literal->evaluates_to = std::make_shared<TemplatedType>(FloatDefinition::generate()); }
+        if (as_char) { as_literal->evaluates_to = std::make_shared<TemplatedType>(CharDefinition::generate()); }
+        if (as_string) { as_literal->evaluates_to = std::make_shared<TemplatedType>(StringDefinition::generate()); }
         if (!as_literal->evaluates_to.has_value()) {
             throw handle_error(as_literal->token, "(during static analysis) Unkown or base type Literal.");
         }
@@ -462,7 +467,7 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
         if (!contained_type) {
             throw handle_error(as_array_expr->start_point, "(during static analysis) Cannot deduce type of empty array, use array<type>() constructor instead.");
         }
-        as_array_expr->evaluates_to = TemplatedType::generate(std::make_shared<ArrayDefinition>(contained_type), {contained_type});
+        as_array_expr->evaluates_to = TemplatedType::generate(std::make_shared<ArrayDefinition>(TemplateDefinition::generate(contained_type)), {contained_type});
         return;
     }
     auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
@@ -554,9 +559,8 @@ auto cblang::compiler::StaticAnalyzer::assert_function_exists(const scanner::Tok
 }
 
 auto cblang::compiler::StaticAnalyzer::assert_var_exists(const scanner::Token& name) const -> std::shared_ptr<MemberDefinition> {
-    for (auto rit = current_function_scopes.rbegin(); rit != current_function_scopes.rend(); rit++) {
-        const auto& scope = *rit;
-        if (!scope.contains(name.raw)) {
+    for (const auto & scope : std::ranges::reverse_view(current_function_scopes)) {
+         if (!scope.contains(name.raw)) {
             continue;
         }
         return scope.at(name.raw);

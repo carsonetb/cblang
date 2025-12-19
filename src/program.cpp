@@ -5,6 +5,7 @@
 #include "scanner.hpp"
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <stdexcept>
@@ -189,7 +190,7 @@ auto cblang::program::ScopeParser::statement(const std::shared_ptr<parser::State
     }
     auto as_while_stmnt = std::dynamic_pointer_cast<parser::WhileStmnt>(stmnt);
     if (as_while_stmnt) {
-        while (std::dynamic_pointer_cast<objects::BoolObject>(expression(as_while_stmnt->check_expression))) {
+        while (std::dynamic_pointer_cast<objects::BoolObject>(expression(as_while_stmnt->check_expression))->value) {
             PUSH_EMPTY_SCOPE;
             auto ret = process_scope(as_while_stmnt->to_run);
             scope.pop_back();
@@ -269,12 +270,11 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
 }
 
 auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Accessible>& var, std::optional<std::shared_ptr<objects::Object>> call_on, bool must_evaluate) -> std::optional<std::shared_ptr<objects::Object>> {
-    if (!call_on.has_value()) {
-        call_on = scope.back()->scope_object;
-    }
-    
     auto as_call_expr = std::dynamic_pointer_cast<parser::CallExpr>(var);
     if (as_call_expr) {
+        if (!call_on.has_value()) {
+            call_on = scope.back()->scope_object;
+        }
         std::vector<std::shared_ptr<objects::Object>> arguments;
         for (const auto& argument_expr : as_call_expr->args) {
             arguments.push_back(expression(argument_expr));
@@ -293,7 +293,14 @@ auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Acce
 
     auto as_var_expr = std::dynamic_pointer_cast<parser::VarExpr>(var);
     if (as_var_expr) {
-        return call_on.value()->get_var(as_var_expr->name);
+        if (call_on.has_value()) {
+            return call_on.value()->get_var(as_var_expr->name);
+        }
+        auto optional_var = get_variable(as_var_expr->name.raw);
+        if (!optional_var.has_value()) {
+            throw handle_error(as_var_expr->name, "Variable doesn't exist in the current scope.");
+        }
+        return optional_var.value()->object;
     }
 
     throw handle_error("(please report) Invalid Accessible type (or base class).");
@@ -329,8 +336,7 @@ auto cblang::program::ScopeParser::get_class(const std::shared_ptr<parser::Templ
 }
 
 auto cblang::program::ScopeParser::get_class_definition(const std::string& name) const -> std::optional<std::shared_ptr<definitions::ClassDefinition>> {
-    for (unsigned long i = scope.size() - 1; i >= 0; i--) {
-        const auto& item = scope[i];
+    for (const auto & item : std::ranges::reverse_view(scope)) {
         if (item->defined_classes.contains(name)) {
             return item->defined_classes.at(name);
         }
@@ -339,8 +345,7 @@ auto cblang::program::ScopeParser::get_class_definition(const std::string& name)
 }
 
 auto cblang::program::ScopeParser::get_variable(const std::string& name) const -> std::optional<std::shared_ptr<objects::Variable>> {
-    for (unsigned long i = scope.size() - 1; i >= 0; i--) {
-        const auto& item = scope[i];
+    for (const auto & item : std::ranges::reverse_view(scope)) {
         if (item->defined_variables.contains(name)) {
             return item->defined_variables.at(name);
         }

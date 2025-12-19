@@ -253,8 +253,10 @@ auto cblang::parser::Parser::scope() -> std::vector<std::shared_ptr<Statement>> 
 
     while (!check(RIGHT_CURLY) && !is_at_end()) {
         try {
+            if (match({SEMICOLON})) {
+                continue;
+            }
             statements.push_back(statement());
-            consume(SEMICOLON, "Expected ';' after statement.");
         }
         catch (ParseException exception) {
             invalid = true;
@@ -272,6 +274,7 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
             auto name = consume(IDENTIFIER, "");
             consume(EQUAL, "");
             auto expr = expression();
+            consume(SEMICOLON, "Expected ';' after statement.");
             return std::make_shared<SetVar>(name, expr);
         }
         if (check(IDENTIFIER) && (check(IDENTIFIER, 2) || check(LEFT_ANGLE, 2))) {
@@ -279,6 +282,7 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
             auto name = consume(IDENTIFIER, "Expected name after variable type.");
             consume(EQUAL, "Expected '=' after variable name");
             auto expr = expression();
+            consume(SEMICOLON, "Expected ';' after statement.");
             return std::make_shared<CreateVar>(TypeName(type, name), expr);
         }
         if (match({LEFT_CURLY})) {
@@ -288,7 +292,9 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
             return function();
         }
         if (match({RETURN_KW})) {
-            return std::make_shared<Return>(previous(), expression());
+            auto out = std::make_shared<Return>(previous(), expression());
+            consume(SEMICOLON, "Expected ';' after statement.");
+            return out;
         }
         if (match({IF_KW})) {
             return if_stmnt();
@@ -460,10 +466,10 @@ auto cblang::parser::Parser::unary() -> std::shared_ptr<Expr> {
 }
 
 auto cblang::parser::Parser::primary() -> std::shared_ptr<Expr> {
-    if (match({FALSE_KW})) {
+    if (match({TRUE_KW})) {
         return std::make_shared<Literal>(create_literal(true), previous());
     }
-    if (match({TRUE_KW})) {
+    if (match({FALSE_KW})) {
         return std::make_shared<Literal>(create_literal(false), previous());
     }
 
