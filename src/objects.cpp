@@ -5,6 +5,7 @@
 #include "definitions.hpp"
 #include "scanner.hpp"
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -135,12 +136,8 @@ auto cblang::objects::Object::get_scope() -> std::shared_ptr<program::Scope> {
     return out;
 }
 
-auto cblang::objects::Object::cast_from(std::shared_ptr<Object> obj) -> int {
-    return 1;
-}
-
-auto cblang::objects::Object::cast_into(std::shared_ptr<Object> obj) -> int {
-    return 1;
+auto cblang::objects::Object::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
+    return {};
 }
 
 auto cblang::objects::Object::get_templated() const -> std::shared_ptr<definitions::TemplatedType> {
@@ -208,10 +205,12 @@ auto cblang::objects::Callable::validate_call(const scanner::Token& call_point, 
             throw program::handle_error(call_point, "Function requires only " + std::to_string(parameters.size()) + " parameters.");
         }
         auto param_def = parameters[i];
+        if (param_obj->type->can_convert_to(param_def->type->cls)) {
+            return;
+        }
         if (*param_obj->get_templated() != *param_def->type) {
             throw program::handle_error(call_point, "Passed variable of type " + param_obj->get_templated()->stringify() + " but expected type " + param_def->type->stringify() + " (param name " + param_def->name.raw + ").");
         }
-        auto this_variable = std::make_shared<Variable>(param_def->name, param_obj, false, false, false);
     }
 }
 
@@ -287,9 +286,12 @@ auto cblang::objects::FunctionObject::call_this(const scanner::Token& call_point
     }
 
     for (int i = 0; i < passed_params.size(); i++) {
-        const auto& param_obj = passed_params[i];
         const auto& param_def = parameters[i];
-        call_scope->defined_variables[param_def->name.raw] = Variable::generate(param_def->name, param_obj, param_def->is_private, param_def->is_static, param_def->is_const);
+        const auto& param_obj = passed_params[i]->cast_to(param_def->type);
+        if (!param_obj) {
+            throw program::handle_error(call_point, "Parameter " + std::to_string(i) + " (type " + passed_params[i]->get_templated()->stringify() + ") cannot be converted to type " + param_def->type->stringify());
+        }
+        call_scope->defined_variables[param_def->name.raw] = Variable::generate(param_def->name, param_obj.value(), param_def->is_private, param_def->is_static, param_def->is_const);
     }
 
     if (internal) {
@@ -321,6 +323,19 @@ cblang::objects::BoolObject::BoolObject(bool p_value) : Object(BoolDefinition::g
     });
 }
 
+auto cblang::objects::BoolObject::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
+    if (type->cls->pretty_name == "bool") {
+        return std::make_shared<BoolObject>(*this);
+    }
+    if (type->cls->pretty_name == "string") {
+        return StringObject::create(value ? "true" : "false");
+    }
+    if (type->cls->pretty_name == "int") {
+        return IntObject::create(value ? 1 : 0);
+    }
+    return {};
+}
+
 cblang::objects::IntObject::IntObject(int p_value) : Object(IntDefinition::generate(), {}, {}), value(p_value) {
     #define SIMPLE_INT_OPERATOR(RetType, oper) CREATE_OPERATOR(#oper, {return std::make_shared<RetType>(value oper GET_PARAM(IntObject, 0)->value);});
 
@@ -338,6 +353,22 @@ cblang::objects::IntObject::IntObject(int p_value) : Object(IntDefinition::gener
     #undef SIMPLE_INT_OPERATOR
 }
 
+auto cblang::objects::IntObject::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
+    if (type->cls->pretty_name == "int") {
+        return std::make_shared<IntObject>(*this);
+    }
+    if (type->cls->pretty_name == "bool") {
+        return BoolObject::create(value != 0);
+    }
+    if (type->cls->pretty_name == "string") {
+        return StringObject::create(std::to_string(value));
+    }
+    if (type->cls->pretty_name == "float") {
+        return FloatObject::create(static_cast<float>(value));
+    }
+    return {};
+}
+
 cblang::objects::FloatObject::FloatObject(float p_value) : Object(std::make_shared<definitions::FloatDefinition>(), {}, {}), value(p_value) {
     CREATE_OPERATOR("==", {
         return std::make_shared<BoolObject>(value == GET_PARAM(FloatObject, 0)->value);
@@ -346,6 +377,19 @@ cblang::objects::FloatObject::FloatObject(float p_value) : Object(std::make_shar
     CREATE_OPERATOR("!=", {
         return std::make_shared<BoolObject>(value != GET_PARAM(FloatObject, 0)->value);
     });
+}
+
+auto cblang::objects::FloatObject::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
+    if (type->cls->pretty_name == "float") {
+        return std::make_shared<FloatObject>(*this);
+    }
+    if (type->cls->pretty_name == "bool") {
+        return BoolObject::create(value != 0.0);
+    }
+    if (type->cls->pretty_name == "string") {
+        return StringObject::create(std::to_string(value));
+    }
+    return {};
 }
 
 cblang::objects::CharObject::CharObject(char p_value) : Object(std::make_shared<definitions::CharDefinition>(), {}, {}), value(p_value) {
@@ -358,6 +402,22 @@ cblang::objects::CharObject::CharObject(char p_value) : Object(std::make_shared<
     });
 }
 
+auto cblang::objects::CharObject::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
+    if (type->cls->pretty_name == "char") {
+        return std::make_shared<CharObject>(*this);
+    }
+    if (type->cls->pretty_name == "bool") {
+        return BoolObject::create(value != '\0');
+    }
+    if (type->cls->pretty_name == "string") {
+        return StringObject::create(std::string(value, 1));
+    }
+    if (type->cls->pretty_name == "int") {
+        return IntObject::create(value);
+    }
+    return {};
+}
+
 cblang::objects::StringObject::StringObject(std::string p_value) : Object(StringDefinition::generate(), {}, {}), value(std::move(p_value)) {
     CREATE_OPERATOR("==", {
         return std::make_shared<BoolObject>(value == GET_PARAM(StringObject, 0)->value);
@@ -366,6 +426,16 @@ cblang::objects::StringObject::StringObject(std::string p_value) : Object(String
     CREATE_OPERATOR("!=", {
         return std::make_shared<BoolObject>(value != GET_PARAM(StringObject, 0)->value);
     });
+}
+
+auto cblang::objects::StringObject::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
+    if (type->cls->pretty_name == "string") {
+        return std::make_shared<StringObject>(*this);
+    }
+    if (type->cls->pretty_name == "bool") {
+        return BoolObject::create(!value.empty());
+    }
+    return {};
 }
 
 cblang::objects::ArrayObject::ArrayObject(std::vector<std::shared_ptr<Object>> p_value, std::shared_ptr<definitions::TemplateDefinition> value_type) 

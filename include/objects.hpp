@@ -56,8 +56,7 @@ namespace cblang::objects {
             auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, const std::optional<std::shared_ptr<program::Scope>>& global_scope = {}) -> std::optional<std::shared_ptr<Object>>;      
             auto get_var(const scanner::Token& variable_name) const -> std::shared_ptr<Object>;
             auto get_scope() -> std::shared_ptr<program::Scope>;
-            virtual auto cast_from(std::shared_ptr<Object> obj) -> int;
-            virtual auto cast_into(std::shared_ptr<Object> obj) -> int;
+            virtual auto cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>>;
             [[nodiscard]] auto get_templated() const -> std::shared_ptr<TemplatedType>;
             [[nodiscard]] auto get_member_array() const -> std::vector<std::shared_ptr<Variable>>;
             [[nodiscard]] auto get_template_array() const -> std::vector<std::shared_ptr<TemplateDefinition>>;
@@ -151,41 +150,75 @@ namespace cblang::objects {
 
     class BoolObject : public Object {
         public:
+            static auto create(bool val) -> std::shared_ptr<BoolObject> {
+                return std::make_shared<BoolObject>(val);
+            }
+
             BoolObject(bool p_value = false);
 
             bool value;
+
+            auto cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> override;
     };
 
     class IntObject : public Object {
         public: 
+            static auto create(int val) -> std::shared_ptr<IntObject> {
+                return std::make_shared<IntObject>(val);
+            }
+
             IntObject(int p_value = 0);
 
             int value;
+
+            auto cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> override;
     };
 
     class FloatObject : public Object {
         public:
+            static auto create(float val) -> std::shared_ptr<FloatObject> {
+                return std::make_shared<FloatObject>(val);
+            }
+
             FloatObject(float p_value = 0.0);
 
             float value;
+
+            auto cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> override;
     };
 
     class CharObject : public Object {
         public:
+            static auto create(char val) -> std::shared_ptr<CharObject> {
+                return std::make_shared<CharObject>(val);
+            }
+
             CharObject(char p_value);
 
             char value;
+
+            auto cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> override;
     };
 
     class StringObject : public Object {
         public:
+            static auto create(const std::string& val) -> std::shared_ptr<StringObject> {
+                return std::make_shared<StringObject>(val);
+            }
+
             StringObject(std::string p_value);
 
             std::string value;
+
+            auto cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> override;
     };
 
     class ArrayObject : public Object {
         public:
+            static auto create(const std::vector<std::shared_ptr<Object>>& p_value, const std::shared_ptr<definitions::TemplateDefinition>& value_type) -> std::shared_ptr<ArrayObject> {
+                return std::make_shared<ArrayObject>(p_value, value_type);
+            }
+
             ArrayObject(std::vector<std::shared_ptr<Object>> p_value, std::shared_ptr<definitions::TemplateDefinition> value_type);
 
             std::vector<std::shared_ptr<Object>> value;

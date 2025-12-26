@@ -11,8 +11,6 @@ class Main (int alpha, string beta) = (
             return 1;
         }
 
-        print("HI");
-
         int a = 0;
         int b = 1;
         int i = 2;
@@ -21,6 +19,7 @@ class Main (int alpha, string beta) = (
             a = b;
             b = c;
             i = i + 1;
+            print(b);
         }
 
         return b;

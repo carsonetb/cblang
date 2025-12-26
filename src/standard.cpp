@@ -29,13 +29,12 @@ auto cblang::standard::get_static_stdlib() -> compiler::StaticScope {
 }
 
 auto cblang::standard::get_stdlib_scope(const compiler::StaticScope& static_stdlib) -> std::shared_ptr<program::Scope> {
-
     auto print = objects::Variable::generate(
         scanner::Token::create_external("print"),
         objects::FunctionObject::generate(
             std::dynamic_pointer_cast<definitions::FunctionMember>(static_stdlib.at("print")),
             STATIC_INTERNAL_FUNCTION_PARAMS {
-                std::cout << std::dynamic_pointer_cast<objects::StringObject>(params[0])->value << "\n";
+                std::cout << std::dynamic_pointer_cast<objects::StringObject>(params[0]->cast_to(definitions::TemplatedType::generate(definitions::StringDefinition::generate(), {})).value())->value << "\n"; // TODO: What the heck man
                 return {};
             },
             false, false, true, true

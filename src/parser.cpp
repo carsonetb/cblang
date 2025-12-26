@@ -277,7 +277,7 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
             consume(SEMICOLON, "Expected ';' after statement.");
             return std::make_shared<SetVar>(name, expr);
         }
-        if (check(IDENTIFIER) && (check(IDENTIFIER, 2) || check(LEFT_ANGLE, 2))) {
+        if (check(IDENTIFIER) && (check(IDENTIFIER, 2) || check(LEFT_ANGLE, 2))) { // TODO: This doesn't work because of templated functions
             auto type = templated("create var");
             auto name = consume(IDENTIFIER, "Expected name after variable type.");
             consume(EQUAL, "Expected '=' after variable name");
@@ -305,7 +305,9 @@ auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
         if (match({FOR_KW})) {
             return for_stmnt();
         }
-        return expression();
+        auto out = expression();
+        consume(SEMICOLON, "Expected ';' after expression.");
+        return out;
     }
     catch (ParseException exception) {
         invalid = true;

@@ -131,6 +131,9 @@ auto cblang::definitions::FunctionMember::validate_call(const scanner::Token& ca
     for (int i = 0; i < parameters.size(); i++) {
         const auto& expected = parameters[i];
         const auto& supplied = args[i];
+        if (supplied->cls->can_convert_to(expected->type->cls)) {
+            return;
+        }
         if (*expected->type != *supplied) {
             throw compiler::handle_error(call_point, "(for argument " + std::to_string(i) + ") Expected type '" + expected->type->stringify() + "' but type '" + supplied->stringify() + "' was supplied.");
         }
@@ -167,10 +170,6 @@ cblang::definitions::ClassDefinition::ClassDefinition(
     pretty_name = parser::debug_templates(type_name);
 };
 
-auto cblang::definitions::ClassDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return false;
-}
-
 auto cblang::definitions::ClassDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return false;
 }
@@ -201,11 +200,7 @@ cblang::definitions::UserDefinition::UserDefinition(
     const std::shared_ptr<parser::Templated>& p_name, 
     const std::vector<std::shared_ptr<MemberDefinition>>& p_params,
     const std::vector<std::shared_ptr<MemberDefinition>>& p_members
-) : ClassDefinition(p_name, p_params, p_members) {};
-
-auto cblang::definitions::UserDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return false;
-}
+) : ClassDefinition(p_name, p_params, p_members) {}
 
 auto cblang::definitions::UserDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
     return false;
@@ -254,12 +249,8 @@ auto cblang::definitions::BoolDefinition::generate() -> std::shared_ptr<BoolDefi
     return BOOL_DEF;
 }
 
-auto cblang::definitions::BoolDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "int";
-}
-
 auto cblang::definitions::BoolDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "int";
+    return def->pretty_name == "int" || def->pretty_name == "string";
 }
 
 cblang::definitions::IntDefinition::IntDefinition() : ClassDefinition(TEMPLATED_EMPTY("int"), {}, {}) {};
@@ -279,12 +270,8 @@ auto cblang::definitions::IntDefinition::generate() -> std::shared_ptr<IntDefini
     return INT_DEF;
 }
 
-auto cblang::definitions::IntDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "char" || def->pretty_name == "bool" || def->pretty_name == "string";
-}
-
 auto cblang::definitions::IntDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "char" || def->pretty_name == "bool";
+    return def->pretty_name == "char" || def->pretty_name == "bool" || def->pretty_name == "float" || def->pretty_name == "string";
 }
 
 cblang::definitions::FloatDefinition::FloatDefinition() : ClassDefinition(TEMPLATED_EMPTY("float"), {}, {}) {}
@@ -307,12 +294,8 @@ auto cblang::definitions::FloatDefinition::generate() -> std::shared_ptr<FloatDe
     return generated;
 }
 
-auto cblang::definitions::FloatDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return false;
-}
-
 auto cblang::definitions::FloatDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "string";
+    return def->pretty_name == "string" || def->pretty_name == "bool";
 }
 
 cblang::definitions::CharDefinition::CharDefinition() : ClassDefinition(TEMPLATED_EMPTY("char"), {}, {}) {}
@@ -335,12 +318,8 @@ auto cblang::definitions::CharDefinition::generate() -> std::shared_ptr<CharDefi
     return generated;
 }
 
-auto cblang::definitions::CharDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "int";
-}
-
 auto cblang::definitions::CharDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "int";
+    return def->pretty_name == "int" || def->pretty_name == "string" || def->pretty_name == "bool";
 }
 
 cblang::definitions::StringDefinition::StringDefinition() : ClassDefinition(TEMPLATED_EMPTY("string"), {}, {}) {}
@@ -363,12 +342,8 @@ auto cblang::definitions::StringDefinition::generate() -> std::shared_ptr<String
     return generated;
 }
 
-auto cblang::definitions::StringDefinition::is_constructor_valid(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "array<char>";
-}
-
 auto cblang::definitions::StringDefinition::can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool {
-    return def->pretty_name == "array<char>";
+    return def->pretty_name == "bool";
 }
 
 cblang::definitions::ArrayDefinition::ArrayDefinition(

@@ -1,6 +1,7 @@
 #include "compiler.hpp"
 #include "cblang.hpp"
 #include "definitions.hpp"
+#include "objects.hpp"
 #include "parser.hpp"
 #include "program.hpp"
 #include "scanner.hpp"
@@ -291,7 +292,10 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         expression(as_set_var->val);
         assert(as_set_var->val->evaluates_to.has_value());
         auto expr_type = as_set_var->val->evaluates_to.value();
-        if (*variable->type != *expr_type) { // TODO: Check if the variable can be casted.
+        if (expr_type->cls->can_convert_to(variable->type->cls)) {
+            return {};
+        }
+        if (*variable->type != *expr_type) {
             throw handle_error(as_set_var->name, "(during static analysis) Cannot set Object of type '" + expr_type->stringify() + "' to variable of type '" + variable->type->stringify() + "'.");
         }
         return {};
@@ -303,7 +307,10 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         expression(as_create_var->val);
         assert(as_create_var->val->evaluates_to.has_value());
         auto expr_type = as_create_var->val->evaluates_to.value();
-        if (*var_type != *expr_type) { // TODO: Check if the variable can be casted.
+        if (expr_type->cls->can_convert_to(var_type->cls)) {
+            return {};
+        }
+        if (*var_type != *expr_type) {
             throw handle_error(var_name, "(during static analysis) Cannot set Object of type '" + expr_type->stringify() + "' to variable of type '" + var_type->stringify() + "'");
         }
         current_function_scopes.back()[var_name.raw] = std::make_shared<MemberDefinition>(var_type, var_name, std::optional<std::shared_ptr<parser::Expr>>(), false, false, false);
@@ -378,7 +385,11 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         }
         auto looper_type = process_templated(as_for_stmnt->looper.first);
         auto looped_item_type = looped_type->templates[0];
-        if (*looped_item_type != *looper_type) { // TODO: Check if variable can be casted
+        bool castable = false;
+        if (looped_item_type->cls->can_convert_to(looper_type->cls)) {
+            castable = true;
+        }
+        if (!castable && *looped_item_type != *looper_type) {
             throw handle_error(as_for_stmnt->looper.first->name, "Incorrect looper type (should be '" + looped_item_type->cls->pretty_name + "'.");
         }
         current_function_scopes.emplace_back();
@@ -403,11 +414,12 @@ auto cblang::compiler::StaticAnalyzer::expression(const std::shared_ptr<parser::
         expression(as_logical->right);
         assert(as_logical->left->evaluates_to.has_value());
         assert(as_logical->right->evaluates_to.has_value());
-        // TODO: Check if type can be casted.
-        if (!std::dynamic_pointer_cast<BoolDefinition>(as_logical->left->evaluates_to.value()->cls)) {
+        auto left_class = as_logical->left->evaluates_to.value()->cls;
+        auto right_class = as_logical->right->evaluates_to.value()->cls;
+        if (!std::dynamic_pointer_cast<BoolDefinition>(left_class) && !left_class->can_convert_to(BoolDefinition::generate())) {
             throw handle_error(as_logical->op, "Left expression does not evaluate to type bool.");
         }
-        if (!std::dynamic_pointer_cast<BoolDefinition>(as_logical->right->evaluates_to.value()->cls)) {
+        if (!std::dynamic_pointer_cast<BoolDefinition>(right_class) && !right_class->can_convert_to(BoolDefinition::generate())) {
             throw handle_error(as_logical->op, "Right expression does not evaluate to type bool.");
         }
         return;
