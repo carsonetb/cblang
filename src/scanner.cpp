@@ -89,6 +89,7 @@ auto cblang::scanner::Scanner::scan_token() -> void {
             if (match('|')) { add_token(PIPE_PIPE); }
             else if (match('=')) { add_token(PIPE_EQUAL); }
             else { add_token(PIPE); }
+            break;
         case '-': 
             add_token(match('>') ? RETURN : MINUS); 
             break;

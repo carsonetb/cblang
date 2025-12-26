@@ -1,7 +1,5 @@
 #include "cblang.hpp"
-#include "definitions.hpp"
 #include "objects.hpp"
-#include "program.hpp"
 #include "scanner.hpp"
 #include "standard.hpp"
 #include <fstream>

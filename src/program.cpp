@@ -3,6 +3,7 @@
 #include "objects.hpp"
 #include "parser.hpp"
 #include "scanner.hpp"
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -194,7 +195,15 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
     }
     auto as_logical = std::dynamic_pointer_cast<parser::Logical>(expr);
     if (as_logical) {
-        return binary_operator(expression(as_logical->left), as_logical->op, expression(as_logical->right));
+        auto left = std::dynamic_pointer_cast<objects::BoolObject>(expression(as_logical->left));
+        auto right = std::dynamic_pointer_cast<objects::BoolObject>(expression(as_logical->right));
+        if (as_logical->op.type == scanner::PIPE_PIPE) {
+            return std::make_shared<objects::BoolObject>(left->value || right->value);
+        }
+        if (as_logical->op.type == scanner::AND_AND) {
+            return std::make_shared<objects::BoolObject>(left->value && right->value);
+        }
+        assert(false);
     }
     auto as_grouping = std::dynamic_pointer_cast<parser::Grouping>(expr);
     if (as_grouping) {
