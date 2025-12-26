@@ -42,7 +42,7 @@ auto cblang::enable_verbose_logs() -> void {
     logger->info("Verbose logs enabled.");
 }
 
-auto cblang::cblang_parse_code(const std::string& code) -> std::optional<std::shared_ptr<program::Program>> {
+auto cblang::cblang_parse_code(const std::string& code, const std::optional<compiler::StaticScope>& global_scope) -> std::optional<std::shared_ptr<program::Program>> {
     if (!initialized) {
         logger->error("cblang not initialized (call cblang::init)");
         return {};
@@ -56,7 +56,7 @@ auto cblang::cblang_parse_code(const std::string& code) -> std::optional<std::sh
         logger->error("Error parsing code.");
         return {};
     }
-    compiler::Compiler compiler(program.value());
+    compiler::Compiler compiler(program.value(), global_scope);
     auto compiled_program = compiler.compile();
     if (!compiled_program.has_value()) {
         return {};

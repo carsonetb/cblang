@@ -11,6 +11,9 @@
 #include <unordered_map>
 #include <vector>
 
+#define INTERNAL_FUNCTION_PARAMS [this](const std::vector<std::shared_ptr<definitions::TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
+#define STATIC_INTERNAL_FUNCTION_PARAMS [](const std::vector<std::shared_ptr<definitions::TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
+
 namespace cblang::program {
     class Scope;
 }
@@ -36,6 +39,10 @@ namespace cblang::objects {
 
     class Object : public std::enable_shared_from_this<Object> {
         public:
+            static auto generate(const std::shared_ptr<ClassDefinition>& p_type, const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates, const std::vector<std::shared_ptr<Variable>>& p_params) -> std::shared_ptr<Object> {
+                return std::make_shared<Object>(p_type, p_templates, p_params);
+            }
+
             Object(std::shared_ptr<ClassDefinition> p_type, const std::vector<std::shared_ptr<TemplateDefinition>>& p_templates, const std::vector<std::shared_ptr<Variable>>& p_params);
             virtual ~Object();
 
@@ -46,7 +53,7 @@ namespace cblang::objects {
             std::unordered_map<std::string, std::shared_ptr<Variable>> members_by_name;
 
             auto initialize() -> void;
-            auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>>;      
+            auto call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, const std::optional<std::shared_ptr<program::Scope>>& global_scope = {}) -> std::optional<std::shared_ptr<Object>>;      
             auto get_var(const scanner::Token& variable_name) const -> std::shared_ptr<Object>;
             auto get_scope() -> std::shared_ptr<program::Scope>;
             virtual auto cast_from(std::shared_ptr<Object> obj) -> int;
@@ -138,6 +145,8 @@ namespace cblang::objects {
             MultipleFunctionObject(std::shared_ptr<FunctionObject> first_override);
 
             std::vector<std::shared_ptr<FunctionObject>> objects;
+
+            [[nodiscard]] auto call_this(const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, std::vector<std::shared_ptr<program::Scope>> owner_scope) const -> std::optional<std::shared_ptr<Object>>;
     };
 
     class BoolObject : public Object {

@@ -22,10 +22,11 @@ add_library(cblang
     src/parser.cpp 
     src/program.cpp
     src/scanner.cpp 
+    src/standard.cpp
     src/util.cpp
 )
 target_include_directories(cblang PUBLIC include)
 target_link_libraries(cblang PRIVATE spdlog::spdlog)
 
-set_target_properties(cblang PROPERTIES PUBLIC_HEADER "include/cblang.h;include/definitions.h;include/objects.h;include/compiler.h;include/scanner.h;include/parser.h;include/program.h")
+set_target_properties(cblang PROPERTIES PUBLIC_HEADER "include/cblang.h;include/definitions.h;include/objects.h;include/compiler.h;include/scanner.h;include/parser.h;include/program.h;include/standard.hpp")
 install(TARGETS cblang)

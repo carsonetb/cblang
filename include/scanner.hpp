@@ -32,7 +32,7 @@ namespace cblang::scanner {
 
         // Keywords
         CLASS_KW, TRUE_KW, FALSE_KW, PRIVATE_KW, STATIC_KW, CONST_KW, OPERATOR_KW, CAST_KW, SCOPE_KW, SUPER_KW, 
-        RETURN_KW, IF_KW, ELIF_KW, ELSE_KW, FOR_KW, WHILE_KW, IN_KW,
+        RETURN_KW, IF_KW, ELIF_KW, ELSE_KW, FOR_KW, WHILE_KW, IN_KW, CONTINUE_KW, BREAK_KW,
         
         END_OF_FILE
     };

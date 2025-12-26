@@ -13,8 +13,6 @@
 
 #define GET_PARAM(Type, ind) std::dynamic_pointer_cast<Type>(params[ind])
 
-#define INTERNAL_FUNCTION_PARAMS [this](const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
-
 using namespace cblang;
 using namespace cblang::objects;
 
@@ -106,7 +104,7 @@ auto cblang::objects::Object::initialize() -> void {
     }
 }
 
-auto cblang::objects::Object::call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params) -> std::optional<std::shared_ptr<Object>> {
+auto cblang::objects::Object::call(const std::string& function_name, const scanner::Token& call_point, const std::vector<std::shared_ptr<TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<Object>>& passed_params, const std::optional<std::shared_ptr<program::Scope>>& global_scope) -> std::optional<std::shared_ptr<Object>> {
     if (!members_by_name.contains(function_name)) {
         throw program::handle_error(call_point, "Object of type " + get_templated()->stringify() + " has no function '" + function_name + "'.");
     }
@@ -114,7 +112,12 @@ auto cblang::objects::Object::call(const std::string& function_name, const scann
     if (!as_callable) {
         throw program::handle_error(call_point, "Attempt to call '" + get_templated()->stringify() + "." + function_name + ", but it's a variable.");
     }
-    auto out = as_callable->call_this(call_point, in_templates, passed_params, {get_scope()});
+    std::vector<std::shared_ptr<program::Scope>> scopes = {};
+    if (global_scope.has_value()) {
+        scopes.push_back(global_scope.value());
+    }
+    scopes.push_back(get_scope());
+    auto out = as_callable->call_this(call_point, in_templates, passed_params, scopes);
     return out;
 }
 

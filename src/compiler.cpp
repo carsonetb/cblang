@@ -78,7 +78,7 @@ auto cblang::compiler::Compiler::compile() -> std::optional<std::shared_ptr<prog
 
     logger->info("Beginning static analysis.");
 
-    StaticAnalyzer analyzer(out);
+    StaticAnalyzer analyzer(out, global_scope);
     int err = analyzer.perform_analysis();
 
     if (err == 1) {
@@ -217,8 +217,6 @@ auto cblang::compiler::StaticAnalyzer::init_members(const std::shared_ptr<UserDe
 }
 
 auto cblang::compiler::StaticAnalyzer::perform_analysis() -> int {
-    main_scope = StaticScope();
-
     try {
         init_members(source->main_class, main_scope);
     }
@@ -384,7 +382,7 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
             throw handle_error(as_for_stmnt->looper.first->name, "Incorrect looper type (should be '" + looped_item_type->cls->pretty_name + "'.");
         }
         current_function_scopes.emplace_back();
-        current_function_scopes.back()[looper_name.raw] = std::make_shared<MemberDefinition>(looper_type, looper_name, std::optional<std::shared_ptr<parser::Expr>>(), false, false, false);
+        current_function_scopes.back()[looper_name.raw] = MemberDefinition::generate(looper_type, looper_name, {}, false, false, false);
         auto ret_type = scope(as_for_stmnt->to_run);
         current_function_scopes.pop_back();
         return ret_type;

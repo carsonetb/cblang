@@ -23,7 +23,7 @@ namespace cblang::compiler {
 
     class Compiler {
         public:
-            Compiler(std::shared_ptr<parser::ParsedProgram> p_source) : source(std::move(p_source)) {}
+            Compiler(std::shared_ptr<parser::ParsedProgram> p_source, std::optional<StaticScope> p_global_scope) : source(std::move(p_source)), global_scope(std::move(p_global_scope)) {}
 
             auto compile() -> std::optional<std::shared_ptr<program::Program>>;
 
@@ -37,8 +37,9 @@ namespace cblang::compiler {
             };
 
             std::shared_ptr<parser::ParsedProgram> source;
+            std::optional<StaticScope> global_scope;
 
-            auto main() -> std::shared_ptr<UserDefinition>;
+            auto main() -> std::shared_ptr<definitions::UserDefinition>;
             auto process_class(const std::shared_ptr<parser::Class>& input) -> std::shared_ptr<ClassDefinition>;
             auto process_params(const parser::Parameters& input) -> std::vector<std::shared_ptr<MemberDefinition>>;
             auto class_members(const std::vector<std::shared_ptr<parser::Declaration>>& inputs) -> std::vector<std::shared_ptr<MemberDefinition>>;
@@ -52,7 +53,11 @@ namespace cblang::compiler {
 
     class StaticAnalyzer {
         public:
-            StaticAnalyzer(std::shared_ptr<program::Program> p_source) : source(std::move(p_source)) {}
+            StaticAnalyzer(std::shared_ptr<program::Program> p_source, const std::optional<StaticScope>& global_scope) : source(std::move(p_source)) {
+                if (global_scope.has_value()) {
+                    main_scope = global_scope.value();
+                }
+            }
 
             auto perform_analysis() -> int;
         
@@ -73,8 +78,8 @@ namespace cblang::compiler {
             std::vector<StaticTemplateScope> current_function_templates;
             std::optional<std::shared_ptr<TemplatedType>> function_returns;
 
-            auto init_members(const std::shared_ptr<UserDefinition>& definition, StaticScope& scope) -> void;
-            auto analyze_class(const std::shared_ptr<UserDefinition>& definition) -> void;
+            auto init_members(const std::shared_ptr<definitions::UserDefinition>& definition, StaticScope& scope) -> void;
+            auto analyze_class(const std::shared_ptr<definitions::UserDefinition>& definition) -> void;
             auto function(const std::shared_ptr<FunctionMember>& func) -> void;
             auto scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> std::optional<std::shared_ptr<TemplatedType>>;
             auto statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<TemplatedType>>;

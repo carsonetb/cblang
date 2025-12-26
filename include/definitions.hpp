@@ -128,6 +128,10 @@ namespace cblang::definitions {
 
     class ClassDefinition : public MemberDefinition {
         public:
+            static auto generate(const std::shared_ptr<parser::Templated>& p_name, const std::vector<std::shared_ptr<MemberDefinition>>& p_params, const std::vector<std::shared_ptr<MemberDefinition>>& p_members) -> std::shared_ptr<ClassDefinition> {
+                return std::make_shared<ClassDefinition>(p_name, p_params, p_members);
+            }
+
             ClassDefinition(
                 std::shared_ptr<parser::Templated> p_name,
                 std::vector<std::shared_ptr<MemberDefinition>> p_params,

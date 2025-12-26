@@ -55,8 +55,8 @@ namespace cblang::program {
             static auto unary_operator(const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
             static auto binary_operator(const std::shared_ptr<objects::Object>& lhs, const scanner::Token& oper, const std::shared_ptr<objects::Object>& rhs) -> std::shared_ptr<objects::Object>;
             auto process_scope(const std::vector<std::shared_ptr<parser::Statement>>& statements) -> std::optional<std::shared_ptr<objects::Object>>;
-            auto statement(const std::shared_ptr<parser::Statement>& statement) -> std::optional<std::shared_ptr<objects::Object>>;
-            auto expression(const std::shared_ptr<parser::Expr>& expr) -> std::shared_ptr<objects::Object>;
+            auto statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<objects::Object>>;
+            auto expression(const std::shared_ptr<parser::Expr>& expr, bool must_evaluate = true) -> std::shared_ptr<objects::Object>;
             auto accessible(const std::shared_ptr<parser::Accessible>& var, std::optional<std::shared_ptr<objects::Object>> call_on = {}, bool must_evaluate = false) -> std::optional<std::shared_ptr<objects::Object>>;
             auto set_var(const std::shared_ptr<parser::SetVar>& statement) -> void;
             auto create_var(const std::shared_ptr<parser::CreateVar>& statement) -> void;

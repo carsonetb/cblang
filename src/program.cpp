@@ -31,34 +31,6 @@ auto cblang::program::Program::create_object(const std::vector<std::shared_ptr<o
     }
 }
 
-auto cblang::program::init(bool verbose) -> void {
-    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [cblang::program] %^[%l] %v %$");
-    logger->set_level(spdlog::level::warn);
-
-    initialized = true;
-
-    if (verbose) {
-        enable_verbose_logs();
-    }
-
-    logger->info("Initialization complete!");
-}
-
-auto cblang::program::enable_verbose_logs() -> void {
-    logger->set_level(spdlog::level::debug);
-    logger->info("Verbose logs enabled.");
-}
-
-auto cblang::program::handle_error(const scanner::Token &token, const std::string &error) -> RuntimeException {
-    logger->error("[line " + std::to_string(token.line) + "] [token " + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "] " + error);
-    return {error};
-}
-
-auto cblang::program::handle_error(const std::string &error) -> RuntimeException {
-    logger->error("[unknown line or token] " + error);
-    return {error};
-}
-
 cblang::program::ScopeParser::ScopeParser(
     std::vector<std::shared_ptr<parser::Statement>> p_code, 
     std::vector<std::shared_ptr<program::Scope>> p_scope, 
@@ -139,7 +111,7 @@ auto cblang::program::ScopeParser::process_scope(const std::vector<std::shared_p
 auto cblang::program::ScopeParser::statement(const std::shared_ptr<parser::Statement>& stmnt) -> std::optional<std::shared_ptr<objects::Object>> {
     auto as_expression = std::dynamic_pointer_cast<parser::Expr>(stmnt);
     if (as_expression) {
-        expression(as_expression);
+        expression(as_expression, false);
         return {};
     }
     auto as_set_var = std::dynamic_pointer_cast<parser::SetVar>(stmnt);
@@ -215,7 +187,7 @@ auto cblang::program::ScopeParser::statement(const std::shared_ptr<parser::State
     return {};
 }
 
-auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr>& expr) -> std::shared_ptr<objects::Object> {
+auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr>& expr, bool must_evaluate) -> std::shared_ptr<objects::Object> {
     auto as_binary = std::dynamic_pointer_cast<parser::Binary>(expr);
     if (as_binary) {
         return binary_operator(expression(as_binary->left), as_binary->op, expression(as_binary->right));
@@ -260,7 +232,10 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
     }
     auto as_accessible = std::dynamic_pointer_cast<parser::Accessible>(expr);
     if (as_accessible) {
-        auto out = accessible(as_accessible, {}, true);
+        auto out = accessible(as_accessible, {}, must_evaluate);
+        if (!must_evaluate) {
+            return nullptr;
+        }
         if (!out.value()) {
             throw handle_error("(please report) Accessible with must evaluate enabled returned a null object without throwing an error.");
         }
@@ -269,11 +244,21 @@ auto cblang::program::ScopeParser::expression(const std::shared_ptr<parser::Expr
     throw handle_error("(please repot) Invalid expression type.");
 }
 
+// TODO: This whole function is kinda messy, and badly implemented.
 auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Accessible>& var, std::optional<std::shared_ptr<objects::Object>> call_on, bool must_evaluate) -> std::optional<std::shared_ptr<objects::Object>> {
     auto as_call_expr = std::dynamic_pointer_cast<parser::CallExpr>(var);
     if (as_call_expr) {
+        scanner::Token name_token = as_call_expr->name->name;
         if (!call_on.has_value()) {
-            call_on = scope.back()->scope_object;
+            for (const auto& item : std::ranges::reverse_view(scope)) {
+                if (item->scope_object->members_by_name.contains(name_token.raw)) {
+                    call_on = item->scope_object;
+                    break;
+                }
+            }
+            if (!call_on.has_value()) {
+                throw handle_error(name_token, "Function does not exist in the current scope.");
+            }
         }
         std::vector<std::shared_ptr<objects::Object>> arguments;
         for (const auto& argument_expr : as_call_expr->args) {
@@ -283,7 +268,6 @@ auto cblang::program::ScopeParser::accessible(const std::shared_ptr<parser::Acce
         for (const auto& template_def : as_call_expr->name->templates) {
             templates.push_back(std::make_shared<definitions::TemplateDefinition>(get_class(template_def)));
         }
-        scanner::Token name_token = as_call_expr->name->name;
         auto out = call_on.value()->call(name_token.raw, name_token, templates, arguments); // TODO: Function call stack.
         if (!out.has_value() && must_evaluate) {
             throw handle_error(name_token, "Function must return a value.");
@@ -336,7 +320,7 @@ auto cblang::program::ScopeParser::get_class(const std::shared_ptr<parser::Templ
 }
 
 auto cblang::program::ScopeParser::get_class_definition(const std::string& name) const -> std::optional<std::shared_ptr<definitions::ClassDefinition>> {
-    for (const auto & item : std::ranges::reverse_view(scope)) {
+    for (const auto& item : std::ranges::reverse_view(scope)) {
         if (item->defined_classes.contains(name)) {
             return item->defined_classes.at(name);
         }
@@ -345,10 +329,38 @@ auto cblang::program::ScopeParser::get_class_definition(const std::string& name)
 }
 
 auto cblang::program::ScopeParser::get_variable(const std::string& name) const -> std::optional<std::shared_ptr<objects::Variable>> {
-    for (const auto & item : std::ranges::reverse_view(scope)) {
+    for (const auto& item : std::ranges::reverse_view(scope)) {
         if (item->defined_variables.contains(name)) {
             return item->defined_variables.at(name);
         }
     }
     return {};
+}
+
+auto cblang::program::init(bool verbose) -> void {
+    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [cblang::program] %^[%l] %v %$");
+    logger->set_level(spdlog::level::warn);
+
+    initialized = true;
+
+    if (verbose) {
+        enable_verbose_logs();
+    }
+
+    logger->info("Initialization complete!");
+}
+
+auto cblang::program::enable_verbose_logs() -> void {
+    logger->set_level(spdlog::level::debug);
+    logger->info("Verbose logs enabled.");
+}
+
+auto cblang::program::handle_error(const scanner::Token &token, const std::string &error) -> RuntimeException {
+    logger->error("[line " + std::to_string(token.line) + "] [token " + (token.type == scanner::END_OF_FILE ? "EOF" : token.raw) + "] " + error);
+    return {error};
+}
+
+auto cblang::program::handle_error(const std::string &error) -> RuntimeException {
+    logger->error("[unknown line or token] " + error);
+    return {error};
 }
