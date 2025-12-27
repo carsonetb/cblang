@@ -286,6 +286,8 @@ auto cblang::objects::FunctionObject::call_this(const scanner::Token& call_point
         call_scope->defined_templates[in_template->template_name.raw] = in_template;
     }
 
+    std::vector<std::shared_ptr<Object>> casted_params;
+
     for (size_t i = 0; i < passed_params.size(); i++) {
         const auto& param_def = parameters[i];
         auto param_obj = passed_params[i]->cast_to(param_def->type);
@@ -297,10 +299,11 @@ auto cblang::objects::FunctionObject::call_this(const scanner::Token& call_point
             throw program::handle_error(call_point, "Parameter " + std::to_string(i) + " (type " + passed_params[i]->get_templated()->stringify() + ") cannot be converted to type " + param_def->type->stringify());
         }
         call_scope->defined_variables[param_def->name.raw] = Variable::generate(param_def->name, param_obj.value(), param_def->is_private, param_def->is_static, param_def->is_const);
+        casted_params.push_back(param_obj.value());
     }
 
     if (internal) {
-        return internal.value()(in_templates, passed_params);
+        return internal.value()(in_templates, casted_params);
     }
     if (code) {
         program::ScopeParser parser = program::ScopeParser(code.value(), owner_scope, returns.has_value());
@@ -374,15 +377,15 @@ auto cblang::objects::IntObject::cast_to(const std::shared_ptr<TemplatedType>& t
     return {};
 }
 
-cblang::objects::FloatObject::FloatObject(float p_value) : Object(std::make_shared<definitions::FloatDefinition>(), {}, {}), value(p_value) {
+cblang::objects::FloatObject::FloatObject(float p_value) : Object(FloatDefinition::generate(), {}, {}), value(p_value) {
     #define SIMPLE_FLOAT_OPERATOR(RetType, oper) CREATE_OPERATOR(#oper, {return std::make_shared<RetType>(val oper GET_PARAM(FloatObject, 0)->value);});
 
     SIMPLE_FLOAT_OPERATOR(BoolObject, ==);
     SIMPLE_FLOAT_OPERATOR(BoolObject, !=);
-    SIMPLE_FLOAT_OPERATOR(IntObject, +);
-    SIMPLE_FLOAT_OPERATOR(IntObject, -);
-    SIMPLE_FLOAT_OPERATOR(IntObject, *);
-    SIMPLE_FLOAT_OPERATOR(IntObject, /);
+    SIMPLE_FLOAT_OPERATOR(FloatObject, +);
+    SIMPLE_FLOAT_OPERATOR(FloatObject, -);
+    SIMPLE_FLOAT_OPERATOR(FloatObject, *);
+    SIMPLE_FLOAT_OPERATOR(FloatObject, /);
     SIMPLE_FLOAT_OPERATOR(BoolObject, >);
     SIMPLE_FLOAT_OPERATOR(BoolObject, <);
     SIMPLE_FLOAT_OPERATOR(BoolObject, <=);
@@ -404,7 +407,7 @@ auto cblang::objects::FloatObject::cast_to(const std::shared_ptr<TemplatedType>&
     return {};
 }
 
-cblang::objects::CharObject::CharObject(char p_value) : Object(std::make_shared<definitions::CharDefinition>(), {}, {}), value(p_value) {
+cblang::objects::CharObject::CharObject(char p_value) : Object(CharDefinition::generate(), {}, {}), value(p_value) {
     CREATE_OPERATOR("==", {
         return std::make_shared<BoolObject>(val == GET_PARAM(CharObject, 0)->value);
     });

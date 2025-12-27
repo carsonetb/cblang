@@ -53,6 +53,28 @@ auto cblang::parser::Parser::parse() -> std::optional<std::shared_ptr<ParsedProg
     } 
 }
 
+const std::unordered_map<TokenType, TokenType> cblang::parser::Parser::OP_EQ_MAPPINGS = {
+    {PLUS_EQUAL, PLUS},
+    {MINUS_EQUAL, MINUS},
+    {STAR_EQUAL, STAR},
+    {SLASH_EQUAL, SLASH},
+    {CARET_EQUAL, CARET},
+    {STAR_STAR_EQUAL, STAR_STAR},
+    {MODULO_EQUAL, MODULO},
+    {PIPE_EQUAL, PIPE}
+};
+
+const std::unordered_map<TokenType, std::string> cblang::parser::Parser::OP_EQ_RAW_MAPPINGS = {
+    {PLUS_EQUAL, "+"},
+    {MINUS_EQUAL, "-"},
+    {STAR_EQUAL, "*"},
+    {SLASH_EQUAL, "/"},
+    {CARET_EQUAL, "^"},
+    {STAR_STAR_EQUAL, "**"},
+    {MODULO_EQUAL, "%"},
+    {PIPE_EQUAL, "|"}
+};
+
 auto cblang::parser::Parser::match(const std::vector<scanner::TokenType>& types) -> bool {
     for (const scanner::TokenType& type : types) {
         if (check(type)) {
@@ -270,10 +292,27 @@ auto cblang::parser::Parser::scope() -> std::vector<std::shared_ptr<Statement>> 
 
 auto cblang::parser::Parser::statement() -> std::shared_ptr<Statement> {
     try {
-        if (check(IDENTIFIER) && check(EQUAL, 2)) {
+        if (
+            check(IDENTIFIER) && 
+            (
+                check(EQUAL, 2) || 
+                check(PLUS_EQUAL, 2) || 
+                check(MINUS_EQUAL, 2) || 
+                check(STAR_EQUAL, 2) || 
+                check(SLASH_EQUAL, 2) || 
+                check(CARET_EQUAL, 2) || 
+                check(STAR_STAR_EQUAL, 2) || 
+                check(MODULO_EQUAL, 2) || 
+                check(PIPE_EQUAL, 2)
+            )
+        ) {
             auto name = consume(IDENTIFIER, "");
-            consume(EQUAL, "");
+            auto type = peek();
+            consume(type.type, "");
             auto expr = expression();
+            if (type.type != EQUAL) {
+                expr = Binary::generate(VarExpr::generate({}, name), scanner::Token(OP_EQ_MAPPINGS.at(type.type), OP_EQ_RAW_MAPPINGS.at(type.type), type.line), expr);
+            }
             consume(SEMICOLON, "Expected ';' after statement.");
             return std::make_shared<SetVar>(name, expr);
         }

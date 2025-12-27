@@ -12,6 +12,7 @@ class Main (int alpha, string beta) = (
         }
 
         Double x = 4;
+        x += 1.5;
         print(x);
         int a = 0;
         int b = 1;

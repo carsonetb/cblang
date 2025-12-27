@@ -4,6 +4,7 @@
 #include <exception>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -118,6 +119,10 @@ namespace cblang::parser {
     };
 
     struct Binary : Expr {
+        static auto generate(std::shared_ptr<Expr> p_left, scanner::Token p_op, std::shared_ptr<Expr> p_right) -> std::shared_ptr<Binary> {
+            return std::make_shared<Binary>(p_left, p_op, p_right);
+        }
+
         Binary(std::shared_ptr<Expr> p_left, scanner::Token p_op, std::shared_ptr<Expr> p_right) : left(std::move(p_left)), op(std::move(p_op)), right(std::move(p_right)) {}
 
         std::shared_ptr<Expr> left;
@@ -190,6 +195,10 @@ namespace cblang::parser {
     };
 
     struct VarExpr : Accessible {
+        static auto generate(std::optional<std::shared_ptr<Accessible>> p_access, scanner::Token p_name) -> std::shared_ptr<VarExpr> {
+            return std::make_shared<VarExpr>(p_access, p_name);
+        }
+
         VarExpr(std::optional<std::shared_ptr<Accessible>> p_access, scanner::Token p_name) : Accessible(std::move(p_access)), name(std::move(p_name)) {}
 
         scanner::Token name;
@@ -286,6 +295,9 @@ namespace cblang::parser {
             auto parse() -> std::optional<std::shared_ptr<ParsedProgram>>;
         
         private:
+            static const std::unordered_map<scanner::TokenType, scanner::TokenType> OP_EQ_MAPPINGS;
+            static const std::unordered_map<scanner::TokenType, std::string> OP_EQ_RAW_MAPPINGS;
+
             std::vector<scanner::Token> tokens;
             int current = 0;
             bool invalid = false;

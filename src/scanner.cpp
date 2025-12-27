@@ -80,21 +80,35 @@ auto cblang::scanner::Scanner::scan_token() -> void {
         case '}': add_token(RIGHT_CURLY); break;
         case ',': add_token(COMMA); break;
         case '.': add_token(DOT); break;
-        case '+': add_token(PLUS); break;
+        case '+': 
+            add_token(match('=') ? PLUS_EQUAL : PLUS); break;
         case ';': add_token(SEMICOLON); break;
         case ':': add_token(COLON); break;
-        case '^': add_token(CARET); break;
-        case '%': add_token(MODULO); break;
+        case '^': 
+            add_token(match('=') ? CARET_EQUAL : CARET); break;
+        case '%': 
+            add_token(match('=') ? MODULO_EQUAL : MODULO); break;
         case '|': 
             if (match('|')) { add_token(PIPE_PIPE); }
             else if (match('=')) { add_token(PIPE_EQUAL); }
             else { add_token(PIPE); }
             break;
         case '-': 
-            add_token(match('>') ? RETURN : MINUS); 
+            if (match('=')) { add_token(STAR_EQUAL); }
+            else { add_token(match('>') ? RETURN : MINUS); }
             break;
         case '*': 
-            add_token(match('*') ? STAR_STAR : STAR); 
+            if (match('=')) { 
+                add_token(STAR_EQUAL); 
+            }
+            else {
+                if (match('*')) {
+                    add_token(match('=') ? STAR_STAR_EQUAL : STAR_STAR);
+                }
+                else {
+                    add_token(STAR);
+                }
+            }
             break;
         case '!': 
             add_token(match('=') ? BANG_EQUAL : BANG); 
@@ -109,7 +123,10 @@ auto cblang::scanner::Scanner::scan_token() -> void {
             add_token(match('=') ? GREATER_EQUAL : RIGHT_ANGLE); 
             break;
         case '/':
-            if (match('/')) {
+            if (match('=')) {
+                add_token(SLASH_EQUAL);
+            }
+            else if (match('/')) {
                 while (peek() != '\n' && !is_at_end()) {
                     advance();
                 }
@@ -196,7 +213,7 @@ auto cblang::scanner::Scanner::number() -> void {
         advance();
     }
 
-    if (peek() == '.' && is_digit(peek(2))) {
+    if (peek() == '.') {
         advance();
 
         while (is_digit(peek())) {

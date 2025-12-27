@@ -1,7 +1,6 @@
 #include "compiler.hpp"
 #include "cblang.hpp"
 #include "definitions.hpp"
-#include "objects.hpp"
 #include "parser.hpp"
 #include "program.hpp"
 #include "scanner.hpp"
