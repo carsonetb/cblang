@@ -56,8 +56,8 @@ auto cblang::compiler::handle_error(const scanner::Token& token, const std::stri
 }
 
 auto cblang::compiler::Compiler::get_class(const scanner::Token& token, const std::string& name) const -> std::shared_ptr<ClassDefinition> {
-    if (defined_classes.contains(name)) {
-        return defined_classes.at(name);
+    if (basic_classes.contains(name)) {
+        return basic_classes.at(name);
     }
     throw handle_error(token, "Class '" + name + "' not defined yet.");  
 }
@@ -79,7 +79,7 @@ auto cblang::compiler::Compiler::compile() -> std::optional<std::shared_ptr<prog
 
     logger->info("Beginning static analysis.");
 
-    StaticAnalyzer analyzer(out, global_scope);
+    StaticAnalyzer analyzer(out, global_scope, global_classes);
     int err = analyzer.perform_analysis();
 
     if (err == 1) {
@@ -111,7 +111,7 @@ auto cblang::compiler::Compiler::process_class(const std::shared_ptr<parser::Cla
     //     members.push_back(param);
     // }
     auto out = std::make_shared<definitions::UserDefinition>(input->name, params, members);
-    defined_classes[out->type_name->name.raw] = out;
+    basic_classes[out->type_name->name.raw] = out;
     return out;
 }
 
@@ -295,6 +295,9 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         if (expr_type->cls->can_convert_to(variable->type->cls)) {
             return {};
         }
+        if (variable->type->cls->can_convert_from(expr_type)) {
+            return {};
+        }
         if (*variable->type != *expr_type) {
             throw handle_error(as_set_var->name, "(during static analysis) Cannot set Object of type '" + expr_type->stringify() + "' to variable of type '" + variable->type->stringify() + "'.");
         }
@@ -307,10 +310,14 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         expression(as_create_var->val);
         assert(as_create_var->val->evaluates_to.has_value());
         auto expr_type = as_create_var->val->evaluates_to.value();
+        bool castable = false;
         if (expr_type->cls->can_convert_to(var_type->cls)) {
-            return {};
+            castable = true;
         }
-        if (*var_type != *expr_type) {
+        if (var_type->cls->can_convert_from(expr_type)) {
+            castable = true;
+        }
+        if (!castable && *var_type != *expr_type) {
             throw handle_error(var_name, "(during static analysis) Cannot set Object of type '" + expr_type->stringify() + "' to variable of type '" + var_type->stringify() + "'");
         }
         current_function_scopes.back()[var_name.raw] = std::make_shared<MemberDefinition>(var_type, var_name, std::optional<std::shared_ptr<parser::Expr>>(), false, false, false);
@@ -387,6 +394,9 @@ auto cblang::compiler::StaticAnalyzer::statement(const std::shared_ptr<parser::S
         auto looped_item_type = looped_type->templates[0];
         bool castable = false;
         if (looped_item_type->cls->can_convert_to(looper_type->cls)) {
+            castable = true;
+        }
+        if (looper_type->cls->can_convert_from(looped_item_type)) {
             castable = true;
         }
         if (!castable && *looped_item_type != *looper_type) {

@@ -10,6 +10,13 @@
 #include <utility>
 #include <vector>
 
+#define DEFINE_AND_ADD_OPERATOR(Type, type, name, ret) \
+if (!(type)->members_by_name.contains(name)) {    \
+    auto oper = cblang::definitions::define_operator<Type>(name, ret); \
+    (type)->members.push_back(oper);              \
+    (type)->members_by_name[name] = oper;         \
+} 
+
 namespace cblang::objects {
     class Object;
 }
@@ -18,6 +25,9 @@ namespace cblang::definitions {
     class ClassDefinition;
     class TemplateDefinition;
     class FunctionDefinition;
+    class FunctionMember;
+
+    template <typename OtherT> auto define_operator(const std::string& name, const std::shared_ptr<ClassDefinition>& ret_type) -> std::shared_ptr<FunctionMember>;
     
     enum class LiteralType : uint8_t {
         BOOL,
@@ -150,6 +160,8 @@ namespace cblang::definitions {
 
             virtual auto create_object(const scanner::Token& creation_point, const std::vector<std::shared_ptr<TemplateDefinition>>& templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::shared_ptr<objects::Object>;
             virtual auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool;
+            virtual auto can_convert_from(const std::shared_ptr<TemplatedType>& type) -> bool;
+            virtual auto cast_from(const std::shared_ptr<objects::Object>& obj) -> std::optional<std::shared_ptr<objects::Object>>;
             [[nodiscard]] auto get_functions() const -> std::vector<std::shared_ptr<FunctionMember>>;
             [[nodiscard]] auto get_function(const std::string& name) const -> std::shared_ptr<FunctionMember>;
     };
@@ -172,7 +184,14 @@ namespace cblang::definitions {
 
             BoolDefinition();
 
+            bool generated = false;
+
             auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool override;
+        private:
+            static auto unsafe_singleton() -> std::shared_ptr<BoolDefinition> {
+                static auto out = std::make_shared<BoolDefinition>();
+                return out;
+            }
     };
 
     class IntDefinition : public ClassDefinition {
@@ -181,7 +200,15 @@ namespace cblang::definitions {
 
             IntDefinition();
 
+            bool generated = false;
+
             auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool override;
+        
+        private:
+            static auto unsafe_singleton() -> std::shared_ptr<IntDefinition> {
+                static auto out = std::make_shared<IntDefinition>();
+                return out;
+            }
     };
 
     class FloatDefinition : public ClassDefinition {
@@ -190,7 +217,16 @@ namespace cblang::definitions {
 
             FloatDefinition();
 
+            bool generated = false;
+
             auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool override;
+        
+        private:
+            static auto unsafe_singleton() -> std::shared_ptr<FloatDefinition> {
+                static auto out = std::make_shared<FloatDefinition>();
+                return out;
+            }
+        
     };
 
     class CharDefinition : public ClassDefinition {
@@ -199,7 +235,15 @@ namespace cblang::definitions {
 
             CharDefinition();
 
+            bool generated = false;
+
             auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool override;
+        
+        private:
+            static auto unsafe_singleton() -> std::shared_ptr<CharDefinition> {
+                static auto out = std::make_shared<CharDefinition>();
+                return out;
+            }
     };
 
     class StringDefinition : public ClassDefinition {
@@ -208,7 +252,15 @@ namespace cblang::definitions {
 
             StringDefinition();
 
+            bool generated = false;
+
             auto can_convert_to(const std::shared_ptr<ClassDefinition>& def) -> bool override;
+        
+        private:
+            static auto unsafe_singleton() -> std::shared_ptr<StringDefinition> {
+                static auto out = std::make_shared<StringDefinition>();
+                return out;
+            }
     };
 
     class ArrayDefinition : public ClassDefinition {
@@ -240,4 +292,20 @@ namespace cblang::definitions {
             scanner::Token template_name = scanner::Token(scanner::TokenType::IDENTIFIER, "${UNNAMED_TEMPLATE}", -1);
             std::optional<std::shared_ptr<TemplatedType>> template_used;
     };
+
+    template <typename OtherT>
+    auto define_operator(const std::string& name, const std::shared_ptr<ClassDefinition>& ret_type) -> std::shared_ptr<FunctionMember> {
+        return FunctionMember::generate(
+            parser::Templated::generate(scanner::Token::create_external(name), {}),
+            {
+                MemberDefinition::generate(
+                    TemplatedType::generate(std::make_shared<OtherT>(), {}),
+                    scanner::Token::create_external("other"),
+                    {}, false, false, true
+                )
+            },
+            TemplatedType::generate(ret_type, {}),
+            false, false, true, true, false
+        );
+    }
 }

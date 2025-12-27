@@ -21,23 +21,26 @@ namespace cblang::compiler {
 
     auto handle_error(const scanner::Token& token, const std::string& error) -> CompileException;
 
+    static std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> basic_classes= {
+        {"bool", BoolDefinition::generate()},
+        {"int", IntDefinition::generate()},
+        {"float", FloatDefinition::generate()},
+        {"char", CharDefinition::generate()},
+        {"string", StringDefinition::generate()},
+        {"array", std::make_shared<ArrayDefinition>(TemplateDefinition::generate("value_type"))},
+    };
+
     class Compiler {
         public:
-            Compiler(std::shared_ptr<parser::ParsedProgram> p_source, std::optional<StaticScope> p_global_scope) : source(std::move(p_source)), global_scope(std::move(p_global_scope)) {}
+            Compiler(std::shared_ptr<parser::ParsedProgram> p_source, std::optional<StaticScope> p_global_scope, std::optional<StaticClassScope> p_global_classes = {}) : source(std::move(p_source)), global_scope(std::move(p_global_scope)), global_classes(std::move(p_global_classes)) {}
 
             auto compile() -> std::optional<std::shared_ptr<program::Program>>;
 
         private:
-            std::unordered_map<std::string, std::shared_ptr<definitions::ClassDefinition>> defined_classes = {
-                {"bool", BoolDefinition::generate()},
-                {"int", IntDefinition::generate()},
-                {"char", CharDefinition::generate()},
-                {"string", StringDefinition::generate()},
-                {"array", std::make_shared<ArrayDefinition>(TemplateDefinition::generate("value_type"))},
-            };
 
             std::shared_ptr<parser::ParsedProgram> source;
             std::optional<StaticScope> global_scope;
+            std::optional<StaticClassScope> global_classes;
 
             auto main() -> std::shared_ptr<definitions::UserDefinition>;
             auto process_class(const std::shared_ptr<parser::Class>& input) -> std::shared_ptr<ClassDefinition>;
@@ -50,12 +53,18 @@ namespace cblang::compiler {
 
     using StaticScope = std::unordered_map<std::string, std::shared_ptr<MemberDefinition>>;
     using StaticTemplateScope = std::unordered_map<std::string, std::shared_ptr<TemplateDefinition>>;
+    using StaticClassScope = std::unordered_map<std::string, std::shared_ptr<ClassDefinition>>;
 
     class StaticAnalyzer {
         public:
-            StaticAnalyzer(std::shared_ptr<program::Program> p_source, const std::optional<StaticScope>& global_scope) : source(std::move(p_source)) {
+            StaticAnalyzer(std::shared_ptr<program::Program> p_source, const std::optional<StaticScope>& global_scope, const std::optional<StaticClassScope>& global_classes = {}) : source(std::move(p_source)) {
                 if (global_scope.has_value()) {
                     main_scope = global_scope.value();
+                }
+                if (global_classes.has_value()) {
+                    for (const auto& [name, cls] : global_classes.value()) {
+                        defined_classes[name] = cls;
+                    }
                 }
             }
 
@@ -67,6 +76,7 @@ namespace cblang::compiler {
             std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> defined_classes = {
                 {"bool", BoolDefinition::generate()},
                 {"int", IntDefinition::generate()},
+                {"float", FloatDefinition::generate()},
                 {"char", CharDefinition::generate()},
                 {"string", StringDefinition::generate()},
                 {"array", std::make_shared<ArrayDefinition>(TemplateDefinition::generate("value_type"))},

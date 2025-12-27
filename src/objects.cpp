@@ -5,19 +5,17 @@
 #include "definitions.hpp"
 #include "scanner.hpp"
 
-#include <cstddef>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#define GET_PARAM(Type, ind) std::dynamic_pointer_cast<Type>(params[ind])
-
 using namespace cblang;
 using namespace cblang::objects;
 
-static auto create_function(const std::shared_ptr<ClassDefinition>& type, const std::string& name, const InternalFunction& func, bool is_const = false, bool is_static = false, bool is_cast = false, bool is_operator = false) {
+auto cblang::objects::create_function(const std::shared_ptr<ClassDefinition>& type, const std::string& name, const InternalFunction& func, bool is_const, bool is_static, bool is_cast, bool is_operator) -> std::shared_ptr<Variable> {
     return Variable::generate(
         scanner::Token::create_external(name),
         FunctionObject::generate(
@@ -190,7 +188,7 @@ auto cblang::objects::Callable::validate_call(const scanner::Token& call_point, 
         throw program::handle_error(call_point, "Function requires " + std::to_string(parameters.size()) + " parameters but only " + std::to_string(passed_params.size()) + " were provided.");
     }
 
-    for (int i = 0; i < in_templates.size(); i++) {
+    for (size_t i = 0; i < in_templates.size(); i++) {
         const auto& in_template = in_templates[i];
         if (i >= templates.size()) {
             throw program::handle_error(in_template->template_name, "Function requires only " + std::to_string(templates.size()) + " templates.");
@@ -199,14 +197,17 @@ auto cblang::objects::Callable::validate_call(const scanner::Token& call_point, 
         in_template->template_name = this_template->template_name;
     }
 
-    for (int i = 0; i < passed_params.size(); i++) {
+    for (size_t i = 0; i < passed_params.size(); i++) {
         const auto& param_obj = passed_params[i];
         if (i >= parameters.size()) {
             throw program::handle_error(call_point, "Function requires only " + std::to_string(parameters.size()) + " parameters.");
         }
         auto param_def = parameters[i];
         if (param_obj->type->can_convert_to(param_def->type->cls)) {
-            return;
+            continue;
+        }
+        if (param_def->type->cls->can_convert_from(param_obj->get_templated())) {
+            continue;
         }
         if (*param_obj->get_templated() != *param_def->type) {
             throw program::handle_error(call_point, "Passed variable of type " + param_obj->get_templated()->stringify() + " but expected type " + param_def->type->stringify() + " (param name " + param_def->name.raw + ").");
@@ -285,9 +286,13 @@ auto cblang::objects::FunctionObject::call_this(const scanner::Token& call_point
         call_scope->defined_templates[in_template->template_name.raw] = in_template;
     }
 
-    for (int i = 0; i < passed_params.size(); i++) {
+    for (size_t i = 0; i < passed_params.size(); i++) {
         const auto& param_def = parameters[i];
-        const auto& param_obj = passed_params[i]->cast_to(param_def->type);
+        auto param_obj = passed_params[i]->cast_to(param_def->type);
+        if (!param_obj) {
+            // Try cast_from as fallback
+            param_obj = param_def->type->cls->cast_from(passed_params[i]);
+        }
         if (!param_obj) {
             throw program::handle_error(call_point, "Parameter " + std::to_string(i) + " (type " + passed_params[i]->get_templated()->stringify() + ") cannot be converted to type " + param_def->type->stringify());
         }
@@ -315,11 +320,11 @@ cblang::objects::MultipleFunctionObject::MultipleFunctionObject(
 
 cblang::objects::BoolObject::BoolObject(bool p_value) : Object(BoolDefinition::generate(), {}, {}), value(p_value) {
     CREATE_OPERATOR("==", {
-        return std::make_shared<BoolObject>(value == GET_PARAM(BoolObject, 0)->value);
+        return std::make_shared<BoolObject>(val == GET_PARAM(BoolObject, 0)->value);
     });
 
     CREATE_OPERATOR("!=", {
-        return std::make_shared<BoolObject>(value != GET_PARAM(BoolObject, 0)->value);
+        return std::make_shared<BoolObject>(val != GET_PARAM(BoolObject, 0)->value);
     });
 }
 
@@ -337,7 +342,7 @@ auto cblang::objects::BoolObject::cast_to(const std::shared_ptr<TemplatedType>& 
 }
 
 cblang::objects::IntObject::IntObject(int p_value) : Object(IntDefinition::generate(), {}, {}), value(p_value) {
-    #define SIMPLE_INT_OPERATOR(RetType, oper) CREATE_OPERATOR(#oper, {return std::make_shared<RetType>(value oper GET_PARAM(IntObject, 0)->value);});
+    #define SIMPLE_INT_OPERATOR(RetType, oper) CREATE_OPERATOR(#oper, {return std::make_shared<RetType>(val oper GET_PARAM(IntObject, 0)->value);});
 
     SIMPLE_INT_OPERATOR(BoolObject, ==);
     SIMPLE_INT_OPERATOR(BoolObject, !=);
@@ -370,13 +375,20 @@ auto cblang::objects::IntObject::cast_to(const std::shared_ptr<TemplatedType>& t
 }
 
 cblang::objects::FloatObject::FloatObject(float p_value) : Object(std::make_shared<definitions::FloatDefinition>(), {}, {}), value(p_value) {
-    CREATE_OPERATOR("==", {
-        return std::make_shared<BoolObject>(value == GET_PARAM(FloatObject, 0)->value);
-    });
+    #define SIMPLE_FLOAT_OPERATOR(RetType, oper) CREATE_OPERATOR(#oper, {return std::make_shared<RetType>(val oper GET_PARAM(FloatObject, 0)->value);});
 
-    CREATE_OPERATOR("!=", {
-        return std::make_shared<BoolObject>(value != GET_PARAM(FloatObject, 0)->value);
-    });
+    SIMPLE_FLOAT_OPERATOR(BoolObject, ==);
+    SIMPLE_FLOAT_OPERATOR(BoolObject, !=);
+    SIMPLE_FLOAT_OPERATOR(IntObject, +);
+    SIMPLE_FLOAT_OPERATOR(IntObject, -);
+    SIMPLE_FLOAT_OPERATOR(IntObject, *);
+    SIMPLE_FLOAT_OPERATOR(IntObject, /);
+    SIMPLE_FLOAT_OPERATOR(BoolObject, >);
+    SIMPLE_FLOAT_OPERATOR(BoolObject, <);
+    SIMPLE_FLOAT_OPERATOR(BoolObject, <=);
+    SIMPLE_FLOAT_OPERATOR(BoolObject, >=);
+
+    #undef SIMPLE_FLOAT_OPERATOR
 }
 
 auto cblang::objects::FloatObject::cast_to(const std::shared_ptr<TemplatedType>& type) -> std::optional<std::shared_ptr<Object>> {
@@ -394,11 +406,16 @@ auto cblang::objects::FloatObject::cast_to(const std::shared_ptr<TemplatedType>&
 
 cblang::objects::CharObject::CharObject(char p_value) : Object(std::make_shared<definitions::CharDefinition>(), {}, {}), value(p_value) {
     CREATE_OPERATOR("==", {
-        return std::make_shared<BoolObject>(value == GET_PARAM(CharObject, 0)->value);
+        return std::make_shared<BoolObject>(val == GET_PARAM(CharObject, 0)->value);
     });
-
     CREATE_OPERATOR("!=", {
-        return std::make_shared<BoolObject>(value != GET_PARAM(CharObject, 0)->value);
+        return std::make_shared<BoolObject>(val != GET_PARAM(CharObject, 0)->value);
+    });
+    CREATE_OPERATOR("+", {
+        return std::make_shared<CharObject>(val + GET_PARAM(CharObject, 0)->value);
+    });
+    CREATE_OPERATOR("-", {
+        return std::make_shared<CharObject>(val - GET_PARAM(CharObject, 0)->value);
     });
 }
 
@@ -420,11 +437,13 @@ auto cblang::objects::CharObject::cast_to(const std::shared_ptr<TemplatedType>& 
 
 cblang::objects::StringObject::StringObject(std::string p_value) : Object(StringDefinition::generate(), {}, {}), value(std::move(p_value)) {
     CREATE_OPERATOR("==", {
-        return std::make_shared<BoolObject>(value == GET_PARAM(StringObject, 0)->value);
+        return std::make_shared<BoolObject>(val == GET_PARAM(StringObject, 0)->value);
     });
-
     CREATE_OPERATOR("!=", {
-        return std::make_shared<BoolObject>(value != GET_PARAM(StringObject, 0)->value);
+        return std::make_shared<BoolObject>(val != GET_PARAM(StringObject, 0)->value);
+    });
+    CREATE_OPERATOR("+", {
+        return std::make_shared<StringObject>(val + GET_PARAM(StringObject, 0)->value);
     });
 }
 
@@ -447,8 +466,8 @@ cblang::objects::ArrayObject::ArrayObject(std::vector<std::shared_ptr<Object>> p
 {
     defined_templates["value_type"] = value_type;
 
-    InternalFunction append = INTERNAL_FUNCTION_PARAMS {
-        value.push_back(params[0]);
+    InternalFunction append = INTERNAL_FUNCTION_PARAMS_CAPTURE_SELF {
+        std::dynamic_pointer_cast<ArrayObject>(self)->value.push_back(params[0]);
 
         return {};
     };

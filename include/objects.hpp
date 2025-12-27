@@ -11,15 +11,24 @@
 #include <unordered_map>
 #include <vector>
 
-#define INTERNAL_FUNCTION_PARAMS [this](const std::vector<std::shared_ptr<definitions::TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
+#define INTERNAL_FUNCTION_PARAMS [val = value](const std::vector<std::shared_ptr<definitions::TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
+#define INTERNAL_FUNCTION_PARAMS_CAPTURE_SELF [self = shared_from_this()](const std::vector<std::shared_ptr<definitions::TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
 #define STATIC_INTERNAL_FUNCTION_PARAMS [](const std::vector<std::shared_ptr<definitions::TemplateDefinition>>& in_templates, const std::vector<std::shared_ptr<objects::Object>>& params) -> std::optional<std::shared_ptr<cblang::objects::Object>>
+
+#define GET_PARAM(Type, ind) std::dynamic_pointer_cast<Type>(params[ind])
 
 namespace cblang::program {
     class Scope;
 }
 
+using namespace cblang::definitions;
+
 namespace cblang::objects {
-    using namespace definitions;
+    class Variable;
+
+    using InternalFunction = std::function<std::optional<std::shared_ptr<Object>>(const std::vector<std::shared_ptr<TemplateDefinition>>&, const std::vector<std::shared_ptr<Object>>&)>;
+
+    auto create_function(const std::shared_ptr<ClassDefinition>& type, const std::string& name, const InternalFunction& func, bool is_const = false, bool is_static = false, bool is_cast = false, bool is_operator = false) -> std::shared_ptr<Variable>;
 
     class Variable {
         public:
@@ -61,8 +70,6 @@ namespace cblang::objects {
             [[nodiscard]] auto get_member_array() const -> std::vector<std::shared_ptr<Variable>>;
             [[nodiscard]] auto get_template_array() const -> std::vector<std::shared_ptr<TemplateDefinition>>;
     };
-    
-    using InternalFunction = std::function<std::optional<std::shared_ptr<Object>>(const std::vector<std::shared_ptr<TemplateDefinition>>&, const std::vector<std::shared_ptr<Object>>&)>;
 
     class Callable : public Object {
         public:

@@ -27,7 +27,8 @@ auto main(int argc, char *argv[]) -> int {
 
     cblang::init(true);
     auto static_stdlib = cblang::standard::get_static_stdlib();
-    auto out = cblang::cblang_parse_code(buffer.str(), static_stdlib);
+    auto static_stdlib_classes = cblang::standard::get_static_stdlib_classes();
+    auto out = cblang::cblang_parse_code(buffer.str(), static_stdlib, static_stdlib_classes);
     if (!out.has_value()) {
         return 1;
     }

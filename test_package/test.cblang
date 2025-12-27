@@ -11,6 +11,8 @@ class Main (int alpha, string beta) = (
             return 1;
         }
 
+        Double x = 4;
+        print(x);
         int a = 0;
         int b = 1;
         int i = 2;

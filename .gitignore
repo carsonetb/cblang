@@ -2,6 +2,7 @@
 .vscode/ 
 .venv/
 .cache
+.github
 build/
 CMakeUserPresets.json
 test_package/CMakeUserPresets.json

@@ -1,4 +1,5 @@
 #include "program.hpp"
+#include "compiler.hpp"
 #include "definitions.hpp"
 #include "objects.hpp"
 #include "parser.hpp"
@@ -308,12 +309,25 @@ auto cblang::program::ScopeParser::set_var(const std::shared_ptr<parser::SetVar>
     if (variable.value()->is_const || variable.value()->is_static) {
         throw program::handle_error(statement->name, "Cannot modify a const/static variable.");
     }
-    variable.value()->object = expression(statement->val);
+    auto expr_result = expression(statement->val);
+    // Try cast_to first, then cast_from as fallback
+    auto converted = expr_result->cast_to(variable.value()->object->get_templated());
+    if (!converted) {
+        converted = variable.value()->object->type->cast_from(expr_result);
+    }
+    variable.value()->object = converted.value_or(expr_result);
 }
 
 auto cblang::program::ScopeParser::create_var(const std::shared_ptr<parser::CreateVar>& statement) -> void {
     scanner::Token name = statement->type_name.second;
-    scope.back()->defined_variables[name.raw] = std::make_shared<objects::Variable>(name, expression(statement->val), false, false, false); // TODO: Const and static in code.
+    auto var_type = get_class(statement->type_name.first);
+    auto expr_result = expression(statement->val);
+    // Try cast_to first, then cast_from as fallback
+    auto converted = expr_result->cast_to(var_type);
+    if (!converted) {
+        converted = var_type->cls->cast_from(expr_result);
+    }
+    scope.back()->defined_variables[name.raw] = std::make_shared<objects::Variable>(name, converted.value_or(expr_result), false, false, false); // TODO: Const and static in code.
 }
 
 auto cblang::program::ScopeParser::get_class(const std::shared_ptr<parser::Templated>& templated_class) const -> std::shared_ptr<definitions::TemplatedType> {
@@ -333,6 +347,9 @@ auto cblang::program::ScopeParser::get_class_definition(const std::string& name)
         if (item->defined_classes.contains(name)) {
             return item->defined_classes.at(name);
         }
+    }
+    if (compiler::basic_classes.contains(name)) {
+        return compiler::basic_classes.at(name);
     }
     return {};
 }
